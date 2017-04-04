@@ -1,11 +1,11 @@
 # DRW package - master function
 
 DRW <- function(rootname, description, mfdir = ".",
-                mfdata, wtop, dis, bas, wel, hds, cbb, cbf,
+                mfdata, wtop, dis, bas, wel, hds, cbb, cbf, newcbf = TRUE,
                 source.term, STna.rm = FALSE,
                 porosity,
                 start.t, end.t, dt,
-                D, Rf = 1, lambda = 0, decay.sorbed = FALSE,
+                D, vdepD, Rf = 1, lambda = 0, decay.sorbed = FALSE,
                 cd, mm, minnp = 100L, maxnp, Ndp = 2L,
                 load.init = FALSE, init,
                 Kregion = "auto", smd, dKcell, nKlpMFl = 1L,
@@ -78,8 +78,9 @@ DRW <- function(rootname, description, mfdir = ".",
   dsett <- c(lapply(mftstl, `[`, 1L), last(last(mftstl)), recursive = TRUE)
   #
   # - read MODFLOW package files
+  #  -- the DIS files must be given as a character string file name,
+  #      because the file name is required by MODPATH later
   disl <- lapply(dis, function(x) switch(class(x)[1L],
-                                         character = read.DIS(x),
                                          DIS.MFpackage = x,
                                          stop("DRW: invalid dis")))
   basl <- Map(function(x, dis) switch(class(x)[1L],
@@ -203,7 +204,6 @@ DRW <- function(rootname, description, mfdir = ".",
   # - mob
   # - immob
   # - fluxout
-  # - degraded
   # - lost
   # --------------------------------------------------------------------- #
   #
@@ -218,17 +218,32 @@ DRW <- function(rootname, description, mfdir = ".",
                          stop("DRW: one element of source.term is not valid"))
                 })),
                 stop("DRW: source.term is not valid"))
+  if(!all(c("x", "y", "L", "zo", "J") %in% names(rel)))
+    stop("DRW: source.term does not have the correct columns")
   #
   mob <- vector("list", ndrts)
   immob <- vector("list", ndrts)
   fluxout <- vector("list", ndrts)
-  degraded <- numeric(ndrts)
-  lost <- numeric(ndrts)
+  lost <- matrix(0, ndrts, 7L,
+                 dimnames = c("degraded", "inactive", "back", "left",
+                              "front", "right", "other"))
   #
   # - initial state
   mob[[1L]] <- if(load.init) init@plume[ts == ts.init]
   immob[[1L]] <- if(load.init && is.data.table(init@sorbed))
     init@sorbed[ts == ts.init]
+  #
+  # - set the column orders to be used for the data tables
+  #  -- during solution
+  pcolorder <- c("ts", "x", "y", "L", "zo", "m")
+  fcolorder <- c("ts", "C", "R", "L", "J_out")
+  #
+  # - only need a CBF file for a transient MODFLOW model (technically, one
+  #    with more than one time step)
+  newcbfl <- ifelse(sapply(mfdatal, dim.inq.nc, "NTS") > 1L, newcbf, FALSE)
+  #
+  # - initial value
+  o.mfds <- 0L
 
 
   # execute ----
@@ -247,7 +262,109 @@ DRW <- function(rootname, description, mfdir = ".",
   # --------------------------------------------------------------------- #
   #
   for(drts in 2:ndrts){
+    # time at start and end of stress period
+    t1 <- tvals[drts - 1L]
+    t2 <- tvals[drts]
+    dift <- t2 - t1
 
+    # establish MODFLOW model no., stress period and time step
+    o.mfds <- mfds
+    mfds <- cellref.loc(t1, dsett)
+    mfsp <- cellref.loc(t1, mfsptl[[mfds]])
+    mfts <- cellref.loc(t1, mftstl[[mfds]])
+
+    # 1. bring state forward
+    # - mobile
+    statem <- mob[[drts - 1L]]
+    if(!is.null(statem)) statem[, ts := drts]
+    #
+    # - immobile
+    statei <- immob[[drts - 1L]]
+    if(!is.null(statei)) statei[, ts := drts]
+
+    # 2. source releases
+    # - calculate released mass in this time step
+    rel[, mtmp := vapply(J, function(f){
+      sum(vapply(seq(t1 + dift/200, t2 - dift/200, 100),
+                 f, numeric(100L)), na.rm = STna.rm)*dift/100
+    }, numeric(1L))]
+    #
+    # - error if NAs, but STna.rm will have wiped out any NAs if used
+    if(any(is.na(rel$mtmp)))
+      stop("DRW: time step ", drts, ": NAs in source release")
+    #
+    # - add released particles to current particle swarm
+    statem <- rbind(statem, rel[mtmp != 0, list(ts = drts,
+                                                x = x, y = y,
+                                                L = L, zo = zo,
+                                                m = mtmp)])
+    #
+    # - later development could allow release to the sorbed phase
+
+    # 3. sorb and desorb
+    if(Rf != 1){
+      tmp <- sorb.desorb(copy(statem), copy(statei), Rf)
+      statem <- tmp$mob
+      statei <- tmp$immob
+      rm(tmp)
+    }
+
+    # 4. advect
+    # - write MODPATH DAT input?
+    newdat <- mfds != o.mfds
+    #
+    # - write MODPATH CBF input (composite budget file)?
+    newcbf <- mfds != o.mfds && newcbfl[mfds]
+    #
+    # - MODFLOW start time
+    MFt0 <- dsett[mfds]
+    #
+    ptl <- advectMODPATH(copy(statem), t1, t2, MFt0, porosity,
+                         dis[mfds], disl[mfds], basl[mfds], hds, cbb, cbf,
+                         newdat, newcbf,
+                         if(is.finite(maxnp)) maxnp else 1e6L)
+
+    # 5. sinks and degradation
+    mt <- MassTrack(ptl, mfdatal[[mfds]], wtopl[[mfds]],
+                    porosity, statem$m, TRUE, TRUE, FALSE,
+                    TRUE, TRUE, TRUE, TRUE, lambda, TRUE, t2)
+    #
+    # - register mass lost to sinks
+    fluxout[[drts]] <- mt$traces[ml != 0,
+                                 list(ts = drts, C = C, R = R, L = L,
+                                      J_out = sum(ml)/dift),
+                                 by = c("C", "R", "L")]
+    #
+    # - register degraded mass
+    lost[drts, "degraded"] <- sum(mt$traces$mrl)
+    #
+    # - register mass that failed to release (inactive or dry cell)
+    lost[drts, "inactive"] <- sum(mt$loss)
+    #
+    # - update statem, keeping note of starting locations and prefixing an
+    #    integer particle label
+    statem <- mt$traces[, c(list(pno = .GRP, ts = drts),
+                            lapply(.SD, `[`, .N),
+                            list(x0 = x[1L], y0 = y[1L])),
+                        by = ptlno, .SDcols = c("x", "y", "L", "zo", "m")]
+    statem <- statem[m != 0]
+    #
+    # - decay sorbed phase if specified
+    if(decay.sorbed) warning("DRW: sorbed phase degradation not yet programmed")
+
+    # 6. disperse
+    statem <- DRWdisperse(copy(statem), D, vdepD, dift)
+
+    # 7. coalesce
+    # - mobile
+    if(nrow(statem) > minnp){
+      statem <- DRWcoalesce(statem, cd, mm, maxnp)
+    }
+    #
+    # - immobile
+    if(nrow(statei) > minnp){
+      statei <- DRWcoalesce(statei, cd, mm, maxnp)
+    }
   }
 
 }
@@ -276,13 +393,11 @@ DRW <- function(rootname, description, mfdir = ".",
 #' \code{$J_out} (num): rate of mass loss in cell during this time step\cr
 #' outflux of mass from particles by MODFLOW cell reference and DRW time
 #'  step
-#' @slot degraded numeric [ndrts];
-#' mass lost to reactive degradation by DRW time step
-#' @slot lost matrix [ndrts, 6];
-#' mass lost from model by other means; each named column refers to mass
-#'  lost from each edge of the MODFLOW model (top, left, right, bottom),
+#' @slot lost matrix [ndrts, 7];
+#' mass lost from model other than in sinks; each named column refers to
+#'  mass lost from each edge of the MODFLOW model (top, left, right, bottom),
 #'  failed source release due to release into an inactive or dry MODFLOW
-#'  cell, or otherwise
+#'  cell, degraded in first-order reactions, or other
 #' @slot dispersion list with elements:\cr
 #' \code{$D} named numeric [2 or 3]: longitudinal, transverse (and vertical)
 #'  dispersivities (units of length) if \code{vdepD} or dispersion
@@ -327,7 +442,6 @@ DRWmodel <- setClass("DRWmodel",
                                sorbed = "data.table",
                                release = "data.table",
                                fluxout = "data.table",
-                               degraded = "numeric",
                                lost = "matrix",
                                dispersion = "list",
                                reactions = "list",

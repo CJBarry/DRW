@@ -1,0 +1,10 @@
+MODPATH 5 may be found at: https://github.com/mwtoews/MODPATH , commit 5
+
+The latest MODPATH version may be found at:
+ https://water.usgs.gov/ogw/modpath/index.html
+ 
+This website states:
+
+    "Users do not need a license or permission from the USGS to use this
+	 software. Users can download and install as many copies of the
+	 software as they need."
