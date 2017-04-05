@@ -81,8 +81,10 @@ DRW <- function(rootname, description, mfdir = ".",
   #  -- the DIS files must be given as a character string file name,
   #      because the file name is required by MODPATH later
   disl <- lapply(dis, function(x) switch(class(x)[1L],
-                                         DIS.MFpackage = x,
-                                         stop("DRW: invalid dis")))
+                                         character = read.DIS(x),
+                                         stop({
+                                           "DRW: invalid dis (must be character string file names)"
+                                         })))
   basl <- Map(function(x, dis) switch(class(x)[1L],
                                       character = read.BAS(x, dis),
                                       BAS.MFpackage = x,
@@ -106,6 +108,11 @@ DRW <- function(rootname, description, mfdir = ".",
   #    model)
   gccs <- gccs(mfdata[[1L]], TRUE)
   grcs <- grcs(mfdata[[1L]], TRUE)
+  #
+  # - is each model a transient model (or, specifically, do they contain
+  #    more than one time step)
+  transientl <- sapply(mfdatal,
+                       function(x) dim.inq.nc(x, "NTS")$length > 1L)
 
 
   # find the saturated groundwater top ----
@@ -240,7 +247,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - only need a CBF file for a transient MODFLOW model (technically, one
   #    with more than one time step)
-  newcbfl <- ifelse(sapply(mfdatal, dim.inq.nc, "NTS") > 1L, newcbf, FALSE)
+  newcbfl <- ifelse(transientl, newcbf, FALSE)
   #
   # - initial value
   o.mfds <- 0L
@@ -321,7 +328,7 @@ DRW <- function(rootname, description, mfdir = ".",
     #
     ptl <- advectMODPATH(copy(statem), t1, t2, MFt0, porosity,
                          dis[mfds], disl[mfds], basl[mfds], hds, cbb, cbf,
-                         newdat, newcbf,
+                         newdat, newcbf, transient,
                          if(is.finite(maxnp)) maxnp else 1e6L)
 
     # 5. sinks and degradation

@@ -9,3 +9,6 @@
 **/DRW.nam
 **/DRW.ptr
 **/*.cbf
+**/pathline
+**/summary.pth
+**/endpoint

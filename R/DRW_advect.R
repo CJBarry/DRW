@@ -14,6 +14,7 @@
 #' @param cbf CBF file name
 #' @param newdat write frest DAT?
 #' @param newcbf ask MODPATH to write fresh CBF?
+#' @param transient does the MODFLOW model contain more than one time step?
 #' @param maxnp number of particles MODPATH should allocate memory for
 #'
 #' @return
@@ -25,18 +26,18 @@
 #' @examples
 advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
                           disnm, dis, bas, hds, cbb, cbf,
-                          newdat, newcbf, maxnp){
+                          newdat, newcbf, transient, maxnp){
   # write the response file
-  write(rsptxt(t2 - MFt0, newcbf, cbf), "DRW.rsp")
+  write(rsptxt(t2 - MFt0, newcbf, cbf, transient), "DRW.rsp")
 
   # write the DAT file if necessary
-  if(newdat) write(dattxt(porosity, maxnp, dis, bas), "DRW.dat")
+  if(newdat) write(dattxt(phi_e, maxnp, dis, bas), "DRW.dat")
 
   # write MODPATH name file if necessary
   if(newdat) write(namtxt(disnm, hds, cbb, "DRW.dat"), "DRW.nam")
 
   # write starting locations file
-  write(ptrtxt(mpdt[, .(x, y, L, zo)], t1), "DRW.ptr")
+  write(ptrtxt(mpdt[, .(x, y, L, zo)], t1 - MFt0), "DRW.ptr")
 
   # find MODPATH executable
   mpexe <- system.file("exec/Mpathr5_0.exe", package = "DRW",
@@ -59,15 +60,15 @@ advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
 
 # response file
 arp <- "@RESPONSE\n"
-rsptxt <- function(tlim, newcbf, cbf){
+rsptxt <- function(tlim, newcbf, cbf, transient){
   # intro line not needed
   paste0(arp, c("DRW.nam", # name file giving model data
-                if(tr) "2", #
-                if(tr) "1 0",
+                if(transient) "2", #
+                if(transient) "1 0",
                 "Y",
                 paste(tlim, "1"), # terminate simulation at this time
-                if(tr) ifelse(newcbf, "1", "2"), # new cbf?
-                if(tr) cbf, # name of cbf to be written or read
+                if(transient) ifelse(newcbf, "1", "2"), # new cbf?
+                if(transient) cbf, # name of cbf to be written or read
                 "2", # pathline output
                 "N", # don't calculate location at specific time points
                 "1",
@@ -86,8 +87,6 @@ rsptxt <- function(tlim, newcbf, cbf){
 #'
 #' @return
 #' character string
-#'
-#' @importFrom Rflow RIARRAY
 #'
 dattxt <- function(por, MXP, dis, bas){
   # initialise
