@@ -348,11 +348,17 @@ DRW <- function(rootname, description, mfdir = ".",
     # - register mass that failed to release (inactive or dry cell)
     lost[drts, "inactive"] <- sum(mt$loss)
     #
-    # - update statem, keeping note of starting locations and prefixing an
-    #    integer particle label
+    # - update statem, giving extra columns for pathline number, pathline
+    #    length and average trajectory
     statem <- mt$traces[, c(list(pno = .GRP, ts = drts),
                             lapply(.SD, `[`, .N),
-                            list(x0 = x[1L], y0 = y[1L])),
+                            list(s = {
+                              # sum of path segment lengths
+                              sum((diff(x)^2L + diff(y)^2L)^.5)
+                            }, traj = {
+                              # trajectory from start to finish
+                              atan2(y[.N] - y[1L], x[.N] - x[1L])
+                            })),
                         by = ptlno, .SDcols = c("x", "y", "L", "zo", "m")]
     statem <- statem[m != 0]
     #
@@ -360,17 +366,17 @@ DRW <- function(rootname, description, mfdir = ".",
     if(decay.sorbed) warning("DRW: sorbed phase degradation not yet programmed")
 
     # 6. disperse
-    statem <- DRWdisperse(copy(statem), D, vdepD, dift)
+    statem <- disperseRW(copy(statem), D, vdepD, dift, Ndp, TRUE, FALSE)
 
     # 7. coalesce
     # - mobile
     if(nrow(statem) > minnp){
-      statem <- DRWcoalesce(statem, cd, mm, maxnp)
+      statem <- coalesceDRW(statem, cd, mm, maxnp)
     }
     #
     # - immobile
     if(nrow(statei) > minnp){
-      statei <- DRWcoalesce(statei, cd, mm, maxnp)
+      statei <- coalesceDRW(statei, cd, mm, maxnp)
     }
   }
 
