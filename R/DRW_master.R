@@ -371,12 +371,20 @@ DRW <- function(rootname, description, mfdir = ".",
     # 7. coalesce
     # - mobile
     if(nrow(statem) > minnp){
-      statem <- coalesceDRW(statem, cd, mm, maxnp)
+      com <- coalesceDRW(statem, cd, mm, maxnp,
+                         mfdatal[[mfds]], wtopl[[mfds]], mfts)
+      lost[drts, "inactive"] <- lost[drts, "inactive"] + com$loss
+      statem <- com$state
+      rm(com)
     }
     #
     # - immobile
     if(nrow(statei) > minnp){
-      statei <- coalesceDRW(statei, cd, mm, maxnp)
+      coi <- coalesceDRW(statei, cd, mm, maxnp,
+                         mfdatal[[mfds]], wtopl[[mfds]], mfts)
+      lost[drts, "inactive"] <- lost[drts, "inactive"] + coi$loss
+      statei <- coi$state
+      rm(coi)
     }
   }
 

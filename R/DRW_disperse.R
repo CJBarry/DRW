@@ -1,6 +1,6 @@
 # DRW package - split and random walk dispersion
 
-#' Title
+#' Random Walk Dispersion
 #'
 #' @param mpdt
 #' mobile particles data.table after the advection step

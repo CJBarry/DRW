@@ -58,3 +58,31 @@ test_that("MODPATH working", {
 
   setwd(od)
 })
+
+test_that("release into inactive cell", {
+  od <- getwd()
+  setwd(wd <- system.file(package = "DRW"))
+
+  # the example MODFLOW model is part of the Rflow package
+  hdsnm <- "drw_mf_demo.hds"
+  cbbnm <- "drw_mf_demo.cbb"
+  disnm <- "drw_mf_demo.dis"
+  basnm <- "drw_mf_demo.bas"
+
+  dis <- Rflow::read.DIS(disnm)
+  bas <- Rflow::read.BAS(basnm, dis)
+
+  # (25, 25) is in a no-flow cell
+  state <- data.table::data.table(x = c(25, 625), y = c(25, 825),
+                                  L = 1L, zo = .5, m = 10)
+
+  expect_silent({
+    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, .2, disnm,
+                               dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
+                               FALSE, FALSE, TRUE, 100L)
+  })
+  expect_equal(names(ptl), MassTrack::PTL.headers[1:10])
+  expect_equal(data.table::uniqueN(ptl$ptlno), 1L)
+
+  setwd(od)
+})

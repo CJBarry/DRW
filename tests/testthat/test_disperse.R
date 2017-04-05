@@ -32,9 +32,9 @@ test_that("disperseRW", {
 
     # check centre of mass conservation if sym = TRUE
     if(sym) expect_equal(dstate[, {
-      sapply(.SD, weighted.mean, m)
+      sapply(.SD, stats::weighted.mean, m)
     }, .SDcols = c("x", "y")], state[, {
-      sapply(.SD, weighted.mean, m)
+      sapply(.SD, stats::weighted.mean, m)
     }, .SDcols = c("x", "y")])
 
     cat("\n")

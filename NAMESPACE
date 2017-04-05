@@ -2,8 +2,11 @@
 
 exportClasses(DRWmodel)
 import(RNetCDF)
+import(Rflow)
+import(coalesce)
 import(data.table)
 importFrom(MassTrack,PTL.headers)
 importFrom(stats,punif)
 importFrom(stats,rnorm)
 importFrom(stats,runif)
+importFrom(stats,weighted.mean)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/DRW_advect.R
 \name{advectMODPATH}
 \alias{advectMODPATH}
-\title{Title}
+\title{Particle Tracking Advection with MODPATH 5}
 \usage{
 advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newdat,
   newcbf, transient, maxnp)
@@ -40,6 +40,6 @@ advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newdat,
 data.table with pathline results
 }
 \description{
-Title
+Particle Tracking Advection with MODPATH 5
 }
 

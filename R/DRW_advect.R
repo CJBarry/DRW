@@ -1,6 +1,6 @@
 # DRW package - advection, using MODPATH 5
 
-#' Title
+#' Particle Tracking Advection with MODPATH 5
 #'
 #' @param mpdt data.table; mobile particles
 #' @param t1,t2 numeric [1]; time step start and end
@@ -23,7 +23,6 @@
 #' @import data.table
 #' @importFrom MassTrack PTL.headers
 #'
-#' @examples
 advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
                           disnm, dis, bas, hds, cbb, cbf,
                           newdat, newcbf, transient, maxnp){

@@ -2,7 +2,7 @@
 % Please edit documentation in R/DRW_disperse.R
 \name{disperseRW}
 \alias{disperseRW}
-\title{Title}
+\title{Random Walk Dispersion}
 \usage{
 disperseRW(mpdt, D, vdepD, dt, Ndp, sym = TRUE, ThreeDD = FALSE)
 }
@@ -34,6 +34,6 @@ not yet coded}
 data.table (ts, x, y, L, zo, m)
 }
 \description{
-Title
+Random Walk Dispersion
 }
 
