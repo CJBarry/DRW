@@ -24,7 +24,8 @@
 #'
 #' @return
 #' list with:\cr
-#' \code{$state}: particle data.table (ts, x, y, L, zo, m)\cr
+#' \code{$state}: particle data.table with column and row references
+#'  (ts, x, y, L, zo, m, C, R)\cr
 #' \code{$loss}: mass lost due to being in inactive cells
 #'
 #' @import coalesce
@@ -59,8 +60,14 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
   #  particles in each layer
 
   # find column and row references for each particle
-  pdt[, C := cellref.loc(x, gccs(mfdata, TRUE))]
-  pdt[, R := cellref.loc(y, grcs(mfdata, TRUE), TRUE)]
+  # - probably, in fact, these have already been found from the lost mass
+  #    step before coalescing
+  if(!"C" %in% names(pdt)){
+    pdt[, C := cellref.loc(x, gccs(mfdata, TRUE))]
+  }
+  if(!"R" %in% names(pdt)){
+    pdt[, R := cellref.loc(y, grcs(mfdata, TRUE), TRUE)]
+  }
 
   # find layer thicknesses
   pdt[, thk := if(is.na(C) || is.na(R) || is.na(L)) NA else{

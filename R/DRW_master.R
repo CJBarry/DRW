@@ -232,8 +232,8 @@ DRW <- function(rootname, description, mfdir = ".",
   immob <- vector("list", ndrts)
   fluxout <- vector("list", ndrts)
   lost <- matrix(0, ndrts, 7L,
-                 dimnames = c("degraded", "inactive", "back", "left",
-                              "front", "right", "other"))
+                 dimnames = c("degraded", "inactive", "front", "left",
+                              "back", "right", "other"))
   #
   # - initial state
   mob[[1L]] <- if(load.init) init@plume[ts == ts.init]
@@ -368,7 +368,22 @@ DRW <- function(rootname, description, mfdir = ".",
     # 6. disperse
     statem <- disperseRW(copy(statem), D, vdepD, dift, Ndp, TRUE, FALSE)
 
-    # 7. coalesce
+    # 7. register lost mass
+    # - find column and row references
+    statem[, C := cellref.loc(x, gccs)]
+    statem[, R := cellref.loc(y, grcs, TRUE)]
+    #
+    # - register lost mass through each edge from particles with NA C or R
+    #    references
+    lost[drts, "front"] <- statem[is.na(R) & y <= grcs[1L], sum(m)]
+    lost[drts, "left"] <- statem[is.na(C) & x <= gccs[1L], sum(m)]
+    lost[drts, "back"] <- statem[is.na(R) & y >= last(grcs), sum(m)]
+    lost[drts, "right"] <- statem[is.na(C) & x >= last(gccs), sum(m)]
+    #
+    # - remove lost particles
+    statem <- statem[!is.na(statem)]
+
+    # 8. coalesce
     # - mobile
     if(nrow(statem) > minnp){
       com <- coalesceDRW(statem, cd, mm, maxnp,
@@ -385,6 +400,13 @@ DRW <- function(rootname, description, mfdir = ".",
       lost[drts, "inactive"] <- lost[drts, "inactive"] + coi$loss
       statei <- coi$state
       rm(coi)
+    }
+
+    # 9. plot if requested
+    if(plot.state){
+      # never stop running because this fails
+      try(plotDRWstate(statem, rel, drts, mfsp,
+                       basl[[mfds]], well[[mfds]], gccs, grcs, ...))
     }
   }
 

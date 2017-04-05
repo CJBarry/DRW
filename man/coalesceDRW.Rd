@@ -28,7 +28,8 @@ current MODFLOW time step number}
 }
 \value{
 list with:\cr
-\code{$state}: particle data.table (ts, x, y, L, zo, m)\cr
+\code{$state}: particle data.table with column and row references
+ (ts, x, y, L, zo, m, C, R)\cr
 \code{$loss}: mass lost due to being in inactive cells
 }
 \description{
