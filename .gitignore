@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# files created during testing and examples
+**/DRW.rsp
+**/DRW.dat
+**/DRW.nam
+**/DRW.ptr
+**/*.cbf
