@@ -10,9 +10,9 @@
 #' @param dis DIS.MFpackage
 #' @param bas BAS.MFpackage
 #' @param hds file name for head save
-#' @param cbb file name for cbc budget
+#' @param cbb file name for cell-by-cell budget
 #' @param cbf CBF file name
-#' @param newdat write frest DAT?
+#' @param newdat write fresh DAT?
 #' @param newcbf ask MODPATH to write fresh CBF?
 #' @param transient does the MODFLOW model contain more than one time step?
 #' @param maxnp number of particles MODPATH should allocate memory for

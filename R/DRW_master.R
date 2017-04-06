@@ -408,8 +408,50 @@ DRW <- function(rootname, description, mfdir = ".",
       try(plotDRWstate(statem, rel, drts, mfsp,
                        basl[[mfds]], well[[mfds]], gccs, grcs, ...))
     }
-  }
 
+    # 10. save
+    statem[, c("mfds", "mfts") := list(mfds, mfts)]
+    statei[, c("mfds", "mfts") := list(mfds, mfts)]
+    mob[[drts]] <- statem
+    immob[[drts]] <- statei
+  }
+  #
+  # - unpack
+  mob <- rbindlist(mob)
+  setkey(mob, ts)
+  immob <- rbindlist(immob)
+  setkey(immob, ts)
+
+
+  # weighted kernel smooth ----
+  #
+  # --------------------------------------------------------------------- #
+  # layer by layer weighted kernel smooth of particle swarm to give an
+  #  approximation of distributed concentration
+  # --------------------------------------------------------------------- #
+  #
+  # - calculate layer thickness thickness
+  mob[, C := cellref.loc(x, gccs)]
+  mob[, R := cellref.loc(y, grcs, TRUE)]
+  mob[, thk := {
+    top.imtx <- cbind(C, R, L, mfts)
+    bot.imtx <- cbind(C, R, L + 1L)
+
+    top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
+    bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
+
+    top - bot
+  }, by = mfds]
+  #
+  # - initialise array
+  if(Kregion == "auto"){
+    Kxlim <- range(gccs)
+    Kylim <- range(grcs)
+  }else{
+    Kxlim <- Kregion[, 1L]
+    Kylim <- Kregion[, 2L]
+  }
+  # ...
 }
 
 #' DRW model results formal class
