@@ -1,5 +1,104 @@
 # DRW package - master function
 
+#' Dynamic Random Walk aqueous contaminant transport solution
+#'
+#' @param rootname
+#' character string;
+#' the rootname for the results file (\code{".rds"} is automatically
+#'  affixed)
+#' @param description
+#' character string;
+#' a description of this model run, for future reference
+#' @param mfdir
+#' character string;
+#' path to the directory holding all the MODFLOW input and output files;
+#'  the function navigates to this directory so that extended file paths
+#'  for MODFLOW files needn't be specified
+#' @param mfdata
+#' NetCDF object, list of NetCDF objects or character string[Nmfds];
+#' the MODFLOW data sets in NetCDF form (see \code{\link[Rflow]{GW.nc}}),
+#'  either as NetCDF objects (see \code{\link[RNetCDF]{open.nc}}) or as
+#'  character string file paths; this function may use a series of MODFLOW
+#'  models with identical spatial co-ordinates and grids and with time
+#'  periods that lead on from one another, thus a historic flow model may
+#'  seamlessly be linked to a recent flow model, for example
+#' @param wtop
+#' NetCDF object, list of NetCDF objects or character string[Nmfds];
+#' NetCDF data sets of the cell-by-cell top of water in each cell (the
+#'  lower out of head and cell top); if character string file names are
+#'  used, the files needn't exist beforehand as they can be created using
+#'  \code{\link[Rflow]{get.wtop.nc}}
+#' @param dis
+#' character string [Nmfds];
+#' file paths to DIS package files corresponding to the MODFLOW data sets
+#'  in mfdata (note, this cannot be a list of DIS.MFpackage objects, as the
+#'  file names are needed for MODPATH)
+#' @param bas
+#' BAS.MFpackage object (or list thereof) or character string [Nmfds];
+#' the BAS packages corresponding to mfdata (see
+#'  \code{\link[Rflow]{read.BAS}})
+#' @param wel
+#' Optional: WEL.MFpackage object (or list thereof) or character string
+#'  [Nmfds];
+#' the WEL packages corresponding to mfdata (see
+#'  \code{\link[Rflow]{read.WEL}}); this information is only used for
+#'  plotting, and plotting does not depend on it
+#' @param hds,cbb
+#' character string [Nmfds];
+#' the head save and cell-by-cell budget files corresponding to mfdata;
+#'  although this information is in mfdata, MODPATH needs to know where the
+#'  original HDS files are
+#' @param cbf
+#' character string [Nmfds];
+#' the composite budget file names created by MODPATH 5; if these files
+#'  don't already exist or \code{newcbf = TRUE}, MODPATH 5 will write these
+#'  files afresh
+#' @param newcbf
+#' logical [1];
+#' Whether MODPATH 5 should rewrite the CBF file.  If you have modified the
+#'  MODFLOW model since the last DRW run, then you should set this to
+#'  \code{TRUE} (the default), but this can be time-consuming, so if you
+#'  know it is not needed, set to \code{FALSE}.  The CBF will only ever be
+#'  written for the first time step using a particular MODFLOW data set.
+#' @param source.term
+#' data.table, data.frame, \link[DNAPL]{DNAPLSourceTerm} object, or list of
+#'  any combination of these;
+#' information about the transient point releases in the system; if a data
+#'  table or frame, columns should be: x, y (location), L (MODFLOW layer),
+#'  zo (z-offset within layer) and J (list of functions of one variable,
+#'  time, returning values representing source term flux, in units of mass
+#'  per time, at this point)
+#' @param STna.rm
+#' @param porosity
+#' @param start.t
+#' @param end.t
+#' @param dt
+#' @param D
+#' @param vdepD
+#' @param Rf
+#' @param lambda
+#' @param decay.sorbed
+#' @param cd
+#' @param mm
+#' @param minnp
+#' @param maxnp
+#' @param Ndp
+#' @param load.init
+#' @param init
+#' @param Kregion
+#' @param smd
+#' @param dKcell
+#' @param nKlpMFl
+#' @param nc.to.mf
+#' @param mfdata.split
+#' @param plot.state
+#' @param keep.MF.cellref
+#' @param time.mismatch.tol
+#'
+#' @return
+#' @export
+#'
+#' @examples
 DRW <- function(rootname, description, mfdir = ".",
                 mfdata, wtop, dis, bas, wel, hds, cbb, cbf, newcbf = TRUE,
                 source.term, STna.rm = FALSE,
@@ -11,7 +110,10 @@ DRW <- function(rootname, description, mfdir = ".",
                 Kregion = "auto", smd, dKcell, nKlpMFl = 1L,
                 nc.to.mf = 1L, mfdata.split = FALSE,
                 plot.state = TRUE,
+                keep.MF.cellref = TRUE,
                 time.mismatch.tol = 1e-3){
+
+  run.start <- Sys.time()
 
   od <- getwd()
   setwd(mfdir)
@@ -37,7 +139,6 @@ DRW <- function(rootname, description, mfdir = ".",
   # - identify lost mass
   # - plot
   # z calculation
-  # weighted kernel smooth
 
   # MODFLOW inputs and outputs ----
   #
@@ -216,10 +317,12 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - source term
   rel <- switch(class(source.term)[1L],
+                data.frame = as.data.table(source.term),
                 data.table = source.term,
                 DNAPLSourceTerm = ST.DNAPL(source.term),
                 list = rbindlist(lapply(source.term, function(x){
                   switch(class(x)[1L],
+                         data.frame = as.data.table(source.term),
                          data.table = x,
                          DNAPLSourceTerm = ST.DNAPL(x),
                          stop("DRW: one element of source.term is not valid"))
@@ -423,35 +526,75 @@ DRW <- function(rootname, description, mfdir = ".",
   setkey(immob, ts)
 
 
-  # weighted kernel smooth ----
+  # z calculation ----
   #
   # --------------------------------------------------------------------- #
-  # layer by layer weighted kernel smooth of particle swarm to give an
-  #  approximation of distributed concentration
+  # determine z of each particle from layer and z-offset, given saturated
+  #  thickness and elevation of each cell
+  # also determines C and R references which are kept if keep.MF.cellref is
+  #  set to TRUE (default)
   # --------------------------------------------------------------------- #
   #
-  # - calculate layer thickness thickness
   mob[, C := cellref.loc(x, gccs)]
   mob[, R := cellref.loc(y, grcs, TRUE)]
-  mob[, thk := {
+  immob[, C := cellref.loc(x, gccs)]
+  immob[, R := cellref.loc(y, grcs, TRUE)]
+  #
+  # - get z
+  mob[, z := {
     top.imtx <- cbind(C, R, L, mfts)
     bot.imtx <- cbind(C, R, L + 1L)
 
     top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
     bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
 
-    top - bot
+    # qunif reads a quantile from a uniform distribution; it is fully
+    #  vectorised
+    qunif(zo, bot, top)
   }, by = mfds]
+  immob[, z := {
+    top.imtx <- cbind(C, R, L, mfts)
+    bot.imtx <- cbind(C, R, L + 1L)
+
+    top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
+    bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
+
+    qunif(zo, bot, top)
+  }, by = mfds]
+  setcolorder(mob, c("ts", "x", "y", "z", "L", "zo", "m",
+                     "C", "R", "mfds", "mfts"))
+  setcolorder(immob, c("ts", "x", "y", "z", "L", "zo", "m",
+                       "C", "R", "mfds", "mfts"))
   #
-  # - initialise array
-  if(Kregion == "auto"){
-    Kxlim <- range(gccs)
-    Kylim <- range(grcs)
-  }else{
-    Kxlim <- Kregion[, 1L]
-    Kylim <- Kregion[, 2L]
+  # - remove MODFLOW cell reference information if it isn't wanted
+  #  -- always keeps the layer reference as this is used for the Kernel
+  #      smoothing post-processing operation
+  if(!keep.MF.cellref){
+    mob[, c("C", "R", "mfds", "mfts") := NULL]
+    immob[, c("C", "R", "mfds", "mfts") := NULL]
   }
-  # ...
+
+
+  run.end <- Sys.time()
+
+  # save ----
+  #
+  result <- DRWmodel(time = tvals,
+                     plume = mob, sorbed = immob, release = rel,
+                     fluxout = fluxout, lost = lost,
+                     dispersion = mget(c("D", "vdepD", "Ndp")),
+                     reactions = mget(c("Rf", "lambda", "decay.sorbed")),
+                     porosity = porosity,
+                     coalescing = mget(c("cd", "mm", "minnp", "maxnp")),
+                     description = description,
+                     MFinfo = sapply(c("title", "author", "history"),
+                                       function(att){
+                                         sapply(mfdatal, att.get.nc,
+                                                "NC_GLOBAL", att)
+                                       }),
+                     run.timings = c(run.end, run.start))
+  #
+  saveRDS(result, paste0(rootname, ".rds"))
 }
 
 #' DRW model results formal class
@@ -507,10 +650,10 @@ DRW <- function(rootname, description, mfdir = ".",
 #' see (\code{\link[coalesce]{coalesce}}) for more details
 #' @slot description character string;
 #' description of the model run for future reference
-#' @slot MFinfo character string [3];
-#' descriptive attributes, including date, of the MODFLOW NetCDF, for future
-#'  reference, so that it is clear what flow field (and what version) was
-#'  used in the model
+#' @slot MFinfo character string matrix[number of MODFLOW models, 3];
+#' descriptive attributes, including date, of the MODFLOW NetCDFs, for
+#'  future reference, so that it is clear what flow field (and what version)
+#'  was used in the model
 #' @slot run.timings POSIXct [];
 #' summary of simulation timings, to give date of model run and for
 #'  performance analysis
@@ -533,5 +676,5 @@ DRWmodel <- setClass("DRWmodel",
                                porosity = "array",
                                coalescing = "list",
                                description = "character",
-                               MFinfo = "character",
+                               MFinfo = "matrix",
                                run.timings = "POSIXct"))
