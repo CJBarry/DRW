@@ -34,7 +34,7 @@ test_that("MODPATH working", {
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                TRUE, TRUE, TRUE, 100L)
   })
-  expect_equal(names(ptl), MassTrack::PTL.headers[1:10])
+  expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
   # now try again, using the existing DAT and CBF files
   expect_silent({
@@ -42,7 +42,7 @@ test_that("MODPATH working", {
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                FALSE, FALSE, TRUE, 100L)
   })
-  expect_equal(names(ptl), MassTrack::PTL.headers[1:10])
+  expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
   # check expected behaviour with MFt0
   expect_silent({
@@ -50,7 +50,7 @@ test_that("MODPATH working", {
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                FALSE, FALSE, TRUE, 100L)
   })
-  expect_equal(names(ptl), MassTrack::PTL.headers[1:10])
+  expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
   #
   # - the particle was released at the (artificially imposed) MODFLOW start
   #    time in this case, so the first time value should be 1000 - 1000 = 0
@@ -81,7 +81,7 @@ test_that("release into inactive cell", {
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                FALSE, FALSE, TRUE, 100L)
   })
-  expect_equal(names(ptl), MassTrack::PTL.headers[1:10])
+  expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
   expect_equal(data.table::uniqueN(ptl$ptlno), 1L)
 
   setwd(od)

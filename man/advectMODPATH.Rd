@@ -24,11 +24,11 @@ advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newdat,
 
 \item{hds}{file name for head save}
 
-\item{cbb}{file name for cbc budget}
+\item{cbb}{file name for cell-by-cell budget}
 
 \item{cbf}{CBF file name}
 
-\item{newdat}{write frest DAT?}
+\item{newdat}{write fresh DAT?}
 
 \item{newcbf}{ask MODPATH to write fresh CBF?}
 

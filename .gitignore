@@ -4,6 +4,7 @@
 .Ruserdata
 
 # files created during testing and examples
+drw_mf_demo_wtop.nc
 **/DRW.rsp
 **/DRW.dat
 **/DRW.nam
@@ -12,3 +13,5 @@
 **/pathline
 **/summary.pth
 **/endpoint
+**/DRW_EXAMPLE*
+**/fort.*

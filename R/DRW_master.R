@@ -69,36 +69,125 @@
 #'  time, returning values representing source term flux, in units of mass
 #'  per time, at this point)
 #' @param STna.rm
+#' logical [1];
+#' if \code{TRUE}, any \code{NA} values resulting from the source term
+#'  functions (within the model time frame) are ignored and treated as 0,
+#'  otherwise an error will occur if \code{NA}s are found.
 #' @param porosity
-#' @param start.t
-#' @param end.t
+#' numeric [1], numeric [NLAY] or numeric array [NCOL, NROW, NLAY];
+#' the porosity (fractional, 0 to 1), either as uniform value,
+#'  layer-by-layer values or a 3D array of cell-by-cell values matching
+#'  the MODFLOW grid dimensions
+#' @param start.t,end.t
+#' numeric [1];
+#' start and end times of the model (the \code{\link[td]{td}} function may
+#'  be useful)
 #' @param dt
+#' numeric [1]; time step size
 #' @param D
+#' numeric [2 or 3];
+#' simplified dispersivity/ dispersion coefficient tensor, giving
+#'  longitudinal, transverse and optionally vertical components
 #' @param vdepD
+#' logical [1];
+#' \code{TRUE} if the dispersion coefficient is velocity-dependent, in
+#'  which case \code{D} is taken to represent dispersivity, with units of
+#'  length
 #' @param Rf
+#' numeric [1];
+#' retardation factor (1 - (bulk_density times K_d)/(effective_porosity))
 #' @param lambda
+#' numeric [1]; first-order degradation constant (log(2)/half_life)
 #' @param decay.sorbed
+#' logical [1];
+#' \code{TRUE} if first-order degradation affects sorbed contaminant (not
+#'  yet implemented)
 #' @param cd
+#' numeric [2];
+#' horizontal and vertical coalescing search radii (see
+#'  \code{\link[coalesce]{coalesce}})
 #' @param mm
+#' numeric [1];
+#' minimum mass of particles after coalescing (see
+#'  \code{\link[coalesce]{coalesce}})
 #' @param minnp
+#' integer [1];
+#' minimum number of particles on which to perform coalescing
 #' @param maxnp
+#' integer [1];
+#' maximum number of particles after coalescing  (see
+#'  \code{\link[coalesce]{coalesce}})
 #' @param Ndp
-#' @param load.init
+#' integer [1];
+#' number of pairs of particles to spawn to model the dispersion of
+#'  contaminant mass
 #' @param init
-#' @param Kregion
-#' @param smd
-#' @param dKcell
-#' @param nKlpMFl
+#' \code{NULL}, a \link{DRWmodel} object or a character string giving the
+#'  RDS file name in which a DRWmodel object is stored;
+#' another DRW model run to use as the initial state for the current model;
+#'  the time step just before \code{start.t} is used as the initial state,
+#'  modifying the time step times as necessary
 #' @param nc.to.mf
-#' @param mfdata.split
+#' integer [\code{length(mfdata)}];
+#' the MODFLOW model that is related to by each NetCDF dataset in
+#'  \code{mfdata}; normally this will be 1, 2, 3 ..., but sometimes a
+#'  large MODFLOW model may be split into multiple NetCDF datasets (see
+#'  \code{\link[Rflow]{GW.nc}}), in which case it will be something like
+#'  1, 1, 1 ...; for the most common case in which there is only one
+#'  MODFLOW model used, the default value of 1 is appropriate
 #' @param plot.state
+#' logical [1];
+#' if \code{TRUE}, a summary plot of the model state will be shown after
+#'  each time step (generally, not costly in terms of run time)
 #' @param keep.MF.cellref
+#' logical [2];
+#' if \code{TRUE}, the final results for mobile and immobile particles will
+#'  retain MODFLOW column (C), row (R), dataset (mfds) and time step (mfts)
+#'  references
 #' @param time.mismatch.tol
+#' numeric [1];
+#' various time comparisons are made during the model in order to check
+#'  consistency, such as checking that the end time of one MODFLOW dataset
+#'  matches the start time of the next; time.mismatch.tol gives the
+#'  tolerance used in these comparisons in calls to
+#'  \code{\link[base]{all.equal}}
+#' @param ...
+#' graphical parameters such as \code{xlim} (not axis labels, titles,
+#'  \code{asp} or \code{zlim})
 #'
 #' @return
+#' A \link{DRWmodel} object, invisibly.  The result is also saved to file:
+#'  \code{paste0(rootname, ".rds")}.
+#'
+#' @import data.table
+#' @import RNetCDF
+#' @import Rflow
+#' @import MassTrack
+#' @import methods
+#' @importFrom stats qunif
 #' @export
 #'
 #' @examples
+#' library(data.table)
+#'
+#' # single point source which ceases after t = 10000
+#' mfdir <- system.file(package = "DRW")
+#' demoDRW <- DRW("DRW_EXAMPLE", "demo", mfdir,
+#'                "drw_mf_demo.nc", "drw_mf_demo_wtop.nc",
+#'                "drw_mf_demo.dis", "drw_mf_demo.bas", "drw_mf_demo.wel",
+#'                "drw_mf_demo.hds", "drw_mf_demo.cbb", "DRWtest.cbf",
+#'                newcbf = TRUE,
+#'                source.term = data.table(x = 625, y = 825,
+#'                                         L = 1L, zo = .5,
+#'                                         J = function(t){
+#'                                           if(t < 1e4) 1 else 0
+#'                                         }),
+#'                porosity = .1,
+#'                start.t = 9000, end.t = 11000, dt = 200,
+#'                D = c(10, 1), vdepD = TRUE,
+#'                cd = c(20, 10), mm = 1e-7, minnp = 100L, maxnp = 2e4L,
+#'                Ndp = 4L)
+#'
 DRW <- function(rootname, description, mfdir = ".",
                 mfdata, wtop, dis, bas, wel, hds, cbb, cbf, newcbf = TRUE,
                 source.term, STna.rm = FALSE,
@@ -106,12 +195,11 @@ DRW <- function(rootname, description, mfdir = ".",
                 start.t, end.t, dt,
                 D, vdepD, Rf = 1, lambda = 0, decay.sorbed = FALSE,
                 cd, mm, minnp = 100L, maxnp, Ndp = 2L,
-                load.init = FALSE, init,
-                Kregion = "auto", smd, dKcell, nKlpMFl = 1L,
+                init = NULL,
                 nc.to.mf = 1L, mfdata.split = FALSE,
                 plot.state = TRUE,
                 keep.MF.cellref = TRUE,
-                time.mismatch.tol = 1e-3){
+                time.mismatch.tol = 1e-3, ...){
 
   run.start <- Sys.time()
 
@@ -154,7 +242,7 @@ DRW <- function(rootname, description, mfdir = ".",
            NetCDF = x,
            stop("DRW: invalid mfdata"))
   })
-  on.exit(l_ply(mfdatal, close.nc), add = TRUE)
+  on.exit(lapply(mfdatal, close.nc), add = TRUE)
   ndset <- length(mfdatal)
   #
   # - check nc.to.mf (which relates each element of mfdata to a MODFLOW
@@ -186,16 +274,20 @@ DRW <- function(rootname, description, mfdir = ".",
                                          stop({
                                            "DRW: invalid dis (must be character string file names)"
                                          })))
-  basl <- Map(function(x, dis) switch(class(x)[1L],
-                                      character = read.BAS(x, dis),
-                                      BAS.MFpackage = x,
-                                      stop("DRW: invalid bas")), bas, disl)
-  well <- if(!missing(wel)) Map(function(x, dis){
-    switch(class(x)[1L],
-           character = read.WEL(x, dis),
-           WEL.MFpackage = x,
-           stop("DRW: invalid wel"))
-  }, wel, disl)
+  basl <- if(is(bas, "BAS.MFpackage")) list(bas) else{
+    Map(function(x, dis) switch(class(x)[1L],
+                                character = read.BAS(x, dis),
+                                BAS.MFpackage = x,
+                                stop("DRW: invalid bas")), bas, disl)
+  }
+  well <- if(!missing(wel)) if(is(wel, "WEL.MFpackage")) list(wel) else{
+    Map(function(x, dis){
+      switch(class(x)[1L],
+             character = read.WEL(x, dis),
+             WEL.MFpackage = x,
+             stop("DRW: invalid wel"))
+    }, wel, disl)
+  }
   #
   # - gather stress period times for each MODFLOW model
   #  -- note that some elements may be repeated where there is not a simple
@@ -207,13 +299,31 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - column and row co-ordinates (assumed to be the same for each MODFLOW
   #    model)
-  gccs <- gccs(mfdata[[1L]], TRUE)
-  grcs <- grcs(mfdata[[1L]], TRUE)
+  gccs <- gccs(mfdatal[[1L]], TRUE)
+  grcs <- grcs(mfdatal[[1L]], TRUE)
   #
   # - is each model a transient model (or, specifically, do they contain
   #    more than one time step)
   transientl <- sapply(mfdatal,
                        function(x) dim.inq.nc(x, "NTS")$length > 1L)
+  #
+  # - make sure that, if porosity is array, then it is 3D
+  #  -- allows and corrects a 2D array if there is only one layer in the
+  #      MODFLOW model
+  if(is.array(porosity)){
+    if(length(dim(porosity)) == 2L){
+      if(dim.inq.nc(mfdatal[[1L]], "NLAY")$length != 1L){
+        stop("DRW: porosity should be 3D if given as an array")
+      }else porosity <- array(porosity, c(dim(porosity), 1L))
+    }
+    if(`||`(dim(porosity)[1L] != dim.inq.nc(mfdatal[[1L]], "NCOL")$length,
+            dim(porosity)[2L] != dim.inq.nc(mfdatal[[1L]], "NROW")$length))
+      stop("DRW: if porosity is an array, its dimensions should match the MODFLOW model [NCOL, NROW, NLAY]")
+  }
+  if(`&&`(is.vector(porosity),
+          !(length(porosity) %in%
+            c(1L, dim.inq.nc(mfdatal[[1L]], "NLAY")$length))))
+    stop("DRW: if porosity is given as an R vector, then its length must be 1 (uniform value) or NLAY, (layer-by-layer values for each MODFLOW layer)")
 
 
   # find the saturated groundwater top ----
@@ -225,19 +335,26 @@ DRW <- function(rootname, description, mfdir = ".",
   #  not given, this code automatically assembles the correct wtop NetCDF
   # --------------------------------------------------------------------- #
   #
+  # - determine if each MODFLOW NetCDF dataset is a subset
+  mfdata.split <- vapply(mfdatal, function(nc){
+    !is(try(att.inq.nc(nc, "NC_GLOBAL", "subset"), TRUE), "try-error")
+  }, logical(1L))
+  #
   wtopl <- if(missing(wtop)){
     Map(get.wtop.nc, mfdatal, paste0(rootname, "_wtop.nc"),
-        MoreArgs = list(nts.dtit = if(mfdata.split) "sNTS" else "NTS"))
+        nts.dtit = ifelse(mfdata.split, "sNTS", "NTS"))
   }else{
-    Map(function(m, w){
+    Map(function(m, w, nd){
       switch(class(w),
              character = {
-               get.wtop.nc(m, w, if(mfdata.split) "sNTS" else "NTS")
+               get.wtop.nc(m, w, nd)
              },
              NetCDF = w,
              stop("DRW: invalid wtop"))
-    }, mfdatal, wtop)
+    }, mfdatal, wtop, ifelse(mfdata.split, "sNTS", "NTS"))
   }
+  #
+  on.exit(lapply(wtopl, close.nc), add = TRUE)
 
 
   # set up DRW time steps ----
@@ -253,7 +370,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #     time of the last MODFLOW model, to avoid time step confusion
   # --------------------------------------------------------------------- #
   #
-  tvals <- sort(unique(c(Map(seq, dsett[-ndset], dsett[-1L], dt),
+  tvals <- sort(unique(c(Map(seq, dsett[-(ndset + 1L)], dsett[-1L], dt),
                          start.t, dsett, end.t,
                          recursive = TRUE)))
   tvals <- tvals[tvals >= max(start.t, dsett[1L]) &
@@ -279,7 +396,15 @@ DRW <- function(rootname, description, mfdir = ".",
   #  the current model.  Modifies tvals as necessary.
   # --------------------------------------------------------------------- #
   #
+  load.init <- !is.null(init)
+  #
   if(load.init){
+    # read from file if necessary
+    init <- switch(class(init)[1L],
+                   DRWmodel = init,
+                   character = readRDS(init),
+                   stop("DRW: invalid init"))
+    #
     # find which time step to use for initial state
     ts.init <- max({
       tmp <- which(init@time < tvals[1L])
@@ -322,11 +447,19 @@ DRW <- function(rootname, description, mfdir = ".",
                 DNAPLSourceTerm = ST.DNAPL(source.term),
                 list = rbindlist(lapply(source.term, function(x){
                   switch(class(x)[1L],
-                         data.frame = as.data.table(source.term),
+                         data.frame = as.data.table(x),
                          data.table = x,
                          DNAPLSourceTerm = ST.DNAPL(x),
+                         `NULL` = data.table(x = numeric(0L),
+                                             y = numeric(0L),
+                                             L = integer(0L),
+                                             zo = numeric (0L),
+                                             J = list()),
                          stop("DRW: one element of source.term is not valid"))
                 })),
+                `NULL` = data.table(x = numeric(0L), y = numeric(0L),
+                                    L = integer(0L), zo = numeric (0L),
+                                    J = list()),
                 stop("DRW: source.term is not valid"))
   if(!all(c("x", "y", "L", "zo", "J") %in% names(rel)))
     stop("DRW: source.term does not have the correct columns")
@@ -335,8 +468,9 @@ DRW <- function(rootname, description, mfdir = ".",
   immob <- vector("list", ndrts)
   fluxout <- vector("list", ndrts)
   lost <- matrix(0, ndrts, 7L,
-                 dimnames = c("degraded", "inactive", "front", "left",
-                              "back", "right", "other"))
+                 dimnames = list(NULL,
+                                 c("degraded", "inactive", "front", "left",
+                                   "back", "right", "other")))
   #
   # - initial state
   mob[[1L]] <- if(load.init) init@plume[ts == ts.init]
@@ -353,7 +487,7 @@ DRW <- function(rootname, description, mfdir = ".",
   newcbfl <- ifelse(transientl, newcbf, FALSE)
   #
   # - initial value
-  o.mfds <- 0L
+  mfds <- 0L
 
 
   # execute ----
@@ -395,8 +529,8 @@ DRW <- function(rootname, description, mfdir = ".",
     # 2. source releases
     # - calculate released mass in this time step
     rel[, mtmp := vapply(J, function(f){
-      sum(vapply(seq(t1 + dift/200, t2 - dift/200, 100),
-                 f, numeric(100L)), na.rm = STna.rm)*dift/100
+      sum(vapply(seq(t1 + dift/200, t2 - dift/200, length.out = 100L),
+                 f, numeric(1L)), na.rm = STna.rm)*dift/100
     }, numeric(1L))]
     #
     # - error if NAs, but STna.rm will have wiped out any NAs if used
@@ -404,10 +538,13 @@ DRW <- function(rootname, description, mfdir = ".",
       stop("DRW: time step ", drts, ": NAs in source release")
     #
     # - add released particles to current particle swarm
-    statem <- rbind(statem, rel[mtmp != 0, list(ts = drts,
-                                                x = x, y = y,
-                                                L = L, zo = zo,
-                                                m = mtmp)])
+    statem <- rbind(if(is.data.table(statem)){
+      statem[, .(ts, x, y, L, zo, m)]
+    },
+    rel[mtmp != 0, list(ts = drts,
+                        x = x, y = y,
+                        L = L, zo = zo,
+                        m = mtmp)])
     #
     # - later development could allow release to the sorbed phase
 
@@ -430,26 +567,30 @@ DRW <- function(rootname, description, mfdir = ".",
     MFt0 <- dsett[mfds]
     #
     ptl <- advectMODPATH(copy(statem), t1, t2, MFt0, porosity,
-                         dis[mfds], disl[mfds], basl[mfds], hds, cbb, cbf,
-                         newdat, newcbf, transient,
+                         dis[mfds], disl[[mfds]], basl[[mfds]],
+                         hds, cbb, cbf,
+                         newdat, newcbf, transientl[[mfds]],
                          if(is.finite(maxnp)) maxnp else 1e6L)
 
     # 5. sinks and degradation
-    mt <- MassTrack(ptl, mfdatal[[mfds]], wtopl[[mfds]],
-                    porosity, statem$m, TRUE, TRUE, FALSE,
-                    TRUE, TRUE, TRUE, TRUE, lambda, TRUE, t2)
-    #
-    # - register mass lost to sinks
-    fluxout[[drts]] <- mt$traces[ml != 0,
-                                 list(ts = drts, C = C, R = R, L = L,
-                                      J_out = sum(ml)/dift),
-                                 by = c("C", "R", "L")]
-    #
-    # - register degraded mass
-    lost[drts, "degraded"] <- sum(mt$traces$mrl)
-    #
-    # - register mass that failed to release (inactive or dry cell)
-    lost[drts, "inactive"] <- sum(mt$loss)
+    if(nrow(ptl)){
+      mt <- MassTrack(ptl, mfdatal[[mfds]], wtopl[[mfds]],
+                porosity, statem$m, TRUE, TRUE, FALSE,
+                TRUE, TRUE, FALSE, TRUE, lambda, TRUE, t2)
+      #
+      # register mass lost to sinks
+      fluxout[[drts]] <- mt$traces[ml != 0,
+                                   list(ts = drts, C = C, R = R, L = L,
+                                        J_out = sum(ml)/dift),
+                                   by = c("C", "R", "L")]
+      #
+      # register degraded mass
+      lost[drts, "degraded"] <- sum(mt$traces$mrl)
+      #
+      # register mass that failed to release (inactive or dry cell)
+      lost[drts, "inactive"] <- sum(mt$loss)
+    }else mt <- list(traces = cbind(ptl, m = numeric(0L)))
+    setnames(mt$traces, "z_off", "zo")
     #
     # - update statem, giving extra columns for pathline number, pathline
     #    length and average trajectory
@@ -484,25 +625,33 @@ DRW <- function(rootname, description, mfdir = ".",
     lost[drts, "right"] <- statem[is.na(C) & x >= last(gccs), sum(m)]
     #
     # - remove lost particles
-    statem <- statem[!is.na(statem)]
+    statem <- statem[!is.na(C) & !is.na(R)]
 
     # 8. coalesce
     # - mobile
-    if(nrow(statem) > minnp){
-      com <- coalesceDRW(statem, cd, mm, maxnp,
-                         mfdatal[[mfds]], wtopl[[mfds]], mfts)
-      lost[drts, "inactive"] <- lost[drts, "inactive"] + com$loss
-      statem <- com$state
-      rm(com)
+    if(!is.null(statem)){
+      if(nrow(statem) > minnp){
+        com <- coalesceDRW(statem, cd, mm, maxnp,
+                           mfdatal[[mfds]], wtopl[[mfds]], mfts)
+        lost[drts, "inactive"] <- lost[drts, "inactive"] + com$loss
+        statem <- com$state
+        rm(com)
+      }else{
+        statem <- statem[, .(ts, x, y, L, zo, m)]
+      }
     }
     #
     # - immobile
-    if(nrow(statei) > minnp){
+    if(!is.null(statei)){
+      if(nrow(statei) > minnp){
       coi <- coalesceDRW(statei, cd, mm, maxnp,
                          mfdatal[[mfds]], wtopl[[mfds]], mfts)
       lost[drts, "inactive"] <- lost[drts, "inactive"] + coi$loss
       statei <- coi$state
       rm(coi)
+      }else{
+        statei <- statei[, .(ts, x, y, L, zo, m)]
+      }
     }
 
     # 9. plot if requested
@@ -513,17 +662,37 @@ DRW <- function(rootname, description, mfdir = ".",
     }
 
     # 10. save
-    statem[, c("mfds", "mfts") := list(mfds, mfts)]
-    statei[, c("mfds", "mfts") := list(mfds, mfts)]
-    mob[[drts]] <- statem
-    immob[[drts]] <- statei
+    if(!is.null(statem)) statem[, c("mfds", "mfts") := list(mfds, mfts)]
+    if(!is.null(statei)) statei[, c("mfds", "mfts") := list(mfds, mfts)]
+    #
+    # - notation here avoids deleting elements if the mob or immob results
+    #    are NULL
+    mob[drts] <- list(statem)
+    immob[drts] <- list(statei)
   }
   #
   # - unpack
   mob <- rbindlist(mob)
+  if(!length(mob)){
+    mob <- data.table(ts = integer(0L), x = numeric(0L), y = numeric(0L),
+                        L = integer(0L), zo = numeric(0L), m = numeric(0L),
+                        mfds = integer(0L), mfts = integer(0L))
+  }
   setkey(mob, ts)
   immob <- rbindlist(immob)
+  if(!length(immob)){
+    immob <- data.table(ts = integer(0L), x = numeric(0L), y = numeric(0L),
+                        L = integer(0L), zo = numeric(0L), m = numeric(0L),
+                        mfds = integer(0L), mfts = integer(0L))
+  }
   setkey(immob, ts)
+  fluxout <- rbindlist(fluxout)
+  if(!length(fluxout)){
+    fluxout <- data.table(ts = integer(0L),
+                          C = integer(0L), R = integer(0L),
+                          L = integer(0L), J_out = numeric(0L))
+  }
+  setkey(fluxout, ts)
 
 
   # z calculation ----
@@ -541,26 +710,30 @@ DRW <- function(rootname, description, mfdir = ".",
   immob[, R := cellref.loc(y, grcs, TRUE)]
   #
   # - get z
-  mob[, z := {
-    top.imtx <- cbind(C, R, L, mfts)
-    bot.imtx <- cbind(C, R, L + 1L)
+  if(nrow(mob)){
+    mob[, z := {
+      top.imtx <- cbind(C, R, L, mfts)
+      bot.imtx <- cbind(C, R, L + 1L)
 
-    top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
-    bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
+      top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
+      bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
 
-    # qunif reads a quantile from a uniform distribution; it is fully
-    #  vectorised
-    qunif(zo, bot, top)
-  }, by = mfds]
-  immob[, z := {
-    top.imtx <- cbind(C, R, L, mfts)
-    bot.imtx <- cbind(C, R, L + 1L)
+      # qunif reads a quantile from a uniform distribution; it is fully
+      #  vectorised
+      qunif(zo, bot, top)
+    }, by = mfds]
+  }else mob[, z := numeric(0L)]
+  if(nrow(immob)){
+    immob[, z := {
+      top.imtx <- cbind(C, R, L, mfts)
+      bot.imtx <- cbind(C, R, L + 1L)
 
-    top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
-    bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
+      top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
+      bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
 
-    qunif(zo, bot, top)
-  }, by = mfds]
+      qunif(zo, bot, top)
+    }, by = mfds]
+  }else immob[, z := numeric(0L)]
   setcolorder(mob, c("ts", "x", "y", "z", "L", "zo", "m",
                      "C", "R", "mfds", "mfts"))
   setcolorder(immob, c("ts", "x", "y", "z", "L", "zo", "m",
@@ -577,24 +750,31 @@ DRW <- function(rootname, description, mfdir = ".",
 
   run.end <- Sys.time()
 
-  # save ----
+  # save and return ----
+  #
+  # - get MODFLOW information
+  MFinfo <- sapply(c("title", "author", "history"),
+                   function(att){
+                     sapply(mfdatal, att.get.nc,
+                            "NC_GLOBAL", att)
+                   })
+  if(is.vector(MFinfo)) MFinfo <- t(MFinfo)
   #
   result <- DRWmodel(time = tvals,
-                     plume = mob, sorbed = immob, release = rel,
+                     plume = mob, sorbed = immob,
+                     release = rel[, .(x, y, L, zo, J)],
                      fluxout = fluxout, lost = lost,
                      dispersion = mget(c("D", "vdepD", "Ndp")),
                      reactions = mget(c("Rf", "lambda", "decay.sorbed")),
-                     porosity = porosity,
+                     porosity = as.array(porosity),
                      coalescing = mget(c("cd", "mm", "minnp", "maxnp")),
                      description = description,
-                     MFinfo = sapply(c("title", "author", "history"),
-                                       function(att){
-                                         sapply(mfdatal, att.get.nc,
-                                                "NC_GLOBAL", att)
-                                       }),
+                     MFinfo = MFinfo,
                      run.timings = c(run.end, run.start))
   #
   saveRDS(result, paste0(rootname, ".rds"))
+  #
+  invisible(result)
 }
 
 #' DRW model results formal class
@@ -663,7 +843,6 @@ DRW <- function(rootname, description, mfdir = ".",
 #'
 #' @export
 #'
-#' @examples
 DRWmodel <- setClass("DRWmodel",
                      slots = c(time = "numeric",
                                plume = "data.table",

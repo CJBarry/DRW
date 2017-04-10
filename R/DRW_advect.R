@@ -21,11 +21,18 @@
 #' data.table with pathline results
 #'
 #' @import data.table
-#' @importFrom MassTrack PTL.headers
 #'
 advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
                           disnm, dis, bas, hds, cbb, cbf,
                           newdat, newcbf, transient, maxnp){
+  # no particles
+  if(!nrow(mpdt)) return({
+    data.table(ptlno = integer(0L), x = numeric(0L), y = numeric(0L),
+               z_off = numeric(0L), z = numeric(0L), t = numeric(0L),
+               C = integer(0L), R = integer(0L), L = integer(0L),
+               timestep = integer(0L))
+  })
+
   # write the response file
   write(rsptxt(t2 - MFt0, newcbf, cbf, transient), "DRW.rsp")
 
@@ -52,7 +59,8 @@ advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
     stop("MODPATH failed")
   }
   ptl <- fread("pathline", skip = 1L)
-  setnames(ptl, PTL.headers[1:10])
+  setnames(ptl, c("ptlno", "x", "y", "z_off", "z",
+                  "t", "C", "R", "L", "timestep"))
   setkey(ptl, ptlno)
   ptl
 }
@@ -98,11 +106,11 @@ dattxt <- function(por, MXP, dis, bas){
 
   txt[3] <- paste(dis$LAYCBD, collapse = " ")
 
-  txt[4] <- paste(if(is.vector(ib <- bas$IBOUND)) {
+  txt[4] <- paste(if(is.vector(ib <- bas$IBOUND)){
     vapply(ib, function(val) Rflow:::RIARRAY(CNSTNT = val, FMTIN_type = "i",
                                              FMTIN_w = 3L, flag.no = 10L),
            character(1))
-  } else if(length(dim(ib)) == 2L){
+  }else if(length(dim(ib)) == 2L){
     Rflow:::RIARRAY(arr = ib, FMTIN_type = "i", FMTIN_w = 3L, flag.no = 10L)
   }else{
     apply(ib, 3L, Rflow:::RIARRAY, FMTIN_type = "i",

@@ -34,15 +34,19 @@ plotDRWstate <- function(mpdt, rpdt, drts, mfsp,
     MFimage(bas$IBOUND[,, plL], gccs, grcs, c(-1, 1),
             c("blue", "grey", "transparent"), asp = 1, ...,
             xlab = "x", ylab = "y",
-            main = paste0("layer ", plL, "\ntimestep ", drts))
+            main = paste0("layer ", plL, "\ntimestep ", drts),
+            sub = paste(if(is.null(mpdt)) "0" else nrow(mpdt),
+                        "mobile particles"))
 
     # plot mobile particle swarm
-    points(mpdt[L == plL & m != 0, .(x, y)],
-           pch = 16L, cex = .4, col = "#00000080")
+    if(!is.null(mpdt) && nrow(mpdt) > 1L)
+      points(mpdt[L == plL & m != 0, .(x, y)],
+             pch = 16L, cex = .4, col = "#00000080")
 
     # plot active source releases
-    points(rpdt[L == plL & m != 0, .(x, y)],
-           pch = 16L, cex = .8, col = "purple")
+    if(!is.null(rpdt) && nrow(rpdt) > 1L)
+      points(rpdt[L == plL & mtmp != 0, .(x, y)],
+             pch = 16L, cex = .8, col = "purple")
 
     # plot wells if available
     if(!is.null(wel)){

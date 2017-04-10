@@ -76,10 +76,10 @@ see (\code{\link[coalesce]{coalesce}}) for more details}
 \item{\code{description}}{character string;
 description of the model run for future reference}
 
-\item{\code{MFinfo}}{character string [3];
-descriptive attributes, including date, of the MODFLOW NetCDF, for future
- reference, so that it is clear what flow field (and what version) was
- used in the model}
+\item{\code{MFinfo}}{character string matrix[number of MODFLOW models, 3];
+descriptive attributes, including date, of the MODFLOW NetCDFs, for
+ future reference, so that it is clear what flow field (and what version)
+ was used in the model}
 
 \item{\code{run.timings}}{POSIXct [];
 summary of simulation timings, to give date of model run and for

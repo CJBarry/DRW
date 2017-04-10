@@ -13,6 +13,13 @@
 #' @import data.table
 #'
 sorb.desorb <- function(mpdt, ipdt, Rf){
+  if(is.null(mpdt))
+    mpdt <- data.table(ts = integer(0L), x = numeric(0L), y = numeric(0L),
+                       L = integer(0L), zo = numeric(0L), m = numeric(0L))
+  if(is.null(ipdt))
+    ipdt <- data.table(ts = integer(0L), x = numeric(0L), y = numeric(0L),
+                       L = integer(0L), zo = numeric(0L), m = numeric(0L))
+
   newi <- mpdt[, list(ts = ts, x = x, y = y,
                        L = L, zo = zo, m = m*(1 - 1/Rf))]
   mpdt[, m := m/Rf]
@@ -23,5 +30,5 @@ sorb.desorb <- function(mpdt, ipdt, Rf){
   ipdt[, m := m*(1 - 1/Rf)]
 
   list(mob = rbind(mpdt, newm),
-       immob = rbind(ipdt, mewi))
+       immob = rbind(ipdt, newi, fill = TRUE))
 }
