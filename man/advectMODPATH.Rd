@@ -4,7 +4,7 @@
 \alias{advectMODPATH}
 \title{Particle Tracking Advection with MODPATH 5}
 \usage{
-advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newdat,
+advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newds,
   newcbf, transient, maxnp)
 }
 \arguments{
@@ -28,13 +28,13 @@ advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newdat,
 
 \item{cbf}{CBF file name}
 
-\item{newdat}{write fresh DAT?}
-
 \item{newcbf}{ask MODPATH to write fresh CBF?}
 
 \item{transient}{does the MODFLOW model contain more than one time step?}
 
 \item{maxnp}{number of particles MODPATH should allocate memory for}
+
+\item{newdat}{write fresh DAT?}
 }
 \value{
 data.table with pathline results

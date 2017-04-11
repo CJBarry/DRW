@@ -15,9 +15,9 @@ test_that("disperseRW", {
                                     s = stats::runif(1L, 2, 4),
                                     traj = stats::runif(1L, -pi, pi))
 
-    D <- sample(3:8, 2L, TRUE)
+    D <- sample(3:24, 2L, TRUE)
     vdepD <- sample(c(TRUE, FALSE), 1L)
-    Ndp <- sample(10:20, 1L)
+    Ndp <- 50L
     sym <- sample(c(TRUE, FALSE), 1L)
 
     expect_silent(dstate <- disperseRW(state, D, vdepD, dt <- 2, Ndp, sym))
@@ -36,6 +36,7 @@ test_that("disperseRW", {
       sapply(.SD, stats::weighted.mean, m)
     }, .SDcols = c("x", "y")])
 
+    # visual checks
     if(interactive()){
       cat("\n")
       cat("D: "); print(D)
@@ -55,7 +56,7 @@ test_that("disperseRW", {
       # plot characteristic length ellipse
       r0 <- ((if(vdepD) state$s/dt else 1)*D[1L]*dt)^.5
       r1 <- ((if(vdepD) state$s/dt else 1)*D[2L]*dt)^.5
-      phi0 <- state$traj
+      phi0 <- -state$traj
       lines(t(vapply(seq(-pi, pi, length.out = 101L),
                      function(phi){
                        c(matrix(c(cos(phi0), -sin(phi0),

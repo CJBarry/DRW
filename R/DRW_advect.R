@@ -24,9 +24,23 @@
 #'
 advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
                           disnm, dis, bas, hds, cbb, cbf,
-                          newdat, newcbf, transient, maxnp){
+                          newds, newcbf, transient, maxnp){
+  # write the DAT file if necessary
+  # - if the model has reached a new MODFLOW dataset
+  # - if the current DAT file doesn't allow for enough particles
+  if(nrow(mpdt) > maxnp){
+    write(dattxt(phi_e, nrow(mpdt)*2L, dis, bas), "DRW.dat")
+
+    # update MPmaxnp back in the master function
+    if(exists("MPmaxnp", parent.env(environment())))
+      assign("MPmaxnp", nrow(mpdt)*2L, parent.env(environment()))
+  }else if(newds) write(dattxt(phi_e, maxnp, dis, bas), "DRW.dat")
+
+  # write MODPATH name file if necessary
+  if(newds) write(namtxt(disnm, hds, cbb, "DRW.dat"), "DRW.nam")
+
   # no particles
-  if(!nrow(mpdt)) return({
+  if(is.null(mpdt) || !nrow(mpdt)) return({
     data.table(ptlno = integer(0L), x = numeric(0L), y = numeric(0L),
                z_off = numeric(0L), z = numeric(0L), t = numeric(0L),
                C = integer(0L), R = integer(0L), L = integer(0L),
@@ -35,12 +49,6 @@ advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
 
   # write the response file
   write(rsptxt(t2 - MFt0, newcbf, cbf, transient), "DRW.rsp")
-
-  # write the DAT file if necessary
-  if(newdat) write(dattxt(phi_e, maxnp, dis, bas), "DRW.dat")
-
-  # write MODPATH name file if necessary
-  if(newdat) write(namtxt(disnm, hds, cbb, "DRW.dat"), "DRW.nam")
 
   # write starting locations file
   write(ptrtxt(mpdt[, .(x, y, L, zo)], t1 - MFt0), "DRW.ptr")
@@ -128,9 +136,9 @@ dattxt <- function(por, MXP, dis, bas){
                            character(1L)), collapse = "\n")
   }else{
     txt[5] <- if(identical(length(dim(por)), 2L)){
-      Rflow:::RIARRAY(arr = por, flag.no = 1)
+      Rflow:::RIARRAY(arr = por, flag.no = 10L)
     }else{
-      paste(apply(por, 3L, Rflow:::RIARRAY, flag.no = 1), collapse = "\n")
+      paste(apply(por, 3L, Rflow:::RIARRAY, flag.no = 10L), collapse = "\n")
     }
   }
 
@@ -177,6 +185,13 @@ ptrtxt <- function(ptr.dat, rt){
   }
 }
 
+#' MODPATH name file text
+#'
+#' @param dis,hds,cbb,dat file names, not too long (use local names)
+#'
+#' @return
+#' character string
+#'
 namtxt <- function(dis, hds, cbb, dat){
   paste(paste0("DIS    29    \'", dis, "\'"),
         paste0("main      10      \'", dat, "\'"),

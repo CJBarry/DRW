@@ -370,6 +370,8 @@ DRW <- function(rootname, description, mfdir = ".",
   #     time of the last MODFLOW model, to avoid time step confusion
   # --------------------------------------------------------------------- #
   #
+  if(start.t > end.t) stop("DRW: start time after end time")
+  if(dt <= 0) stop("DRW: dt <= 0")
   tvals <- sort(unique(c(Map(seq, dsett[-(ndset + 1L)], dsett[-1L], dt),
                          start.t, dsett, end.t,
                          recursive = TRUE)))
@@ -488,6 +490,10 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - initial value
   mfds <- 0L
+  #
+  # - an initial value to put in the MODPATH DAt file, allocating memory
+  #    for pathlines
+  MPmaxnp <- if(is.finite(maxnp)) maxnp else 1e6L
 
 
   # execute ----
@@ -558,7 +564,13 @@ DRW <- function(rootname, description, mfdir = ".",
 
     # 4. advect
     # - write MODPATH DAT input?
-    newdat <- mfds != o.mfds
+    newds <- mfds != o.mfds
+    #
+    # - be safe: never read the wrong file
+    if(newds){
+      MPfiles <- c(paste0("DRW", c(".ptr", ".rsp", ".dat", ".nam")))
+      file.remove(MPfiles[file.exists(MPfiles)])
+    }
     #
     # - write MODPATH CBF input (composite budget file)?
     newcbf <- mfds != o.mfds && newcbfl[mfds]
@@ -569,8 +581,8 @@ DRW <- function(rootname, description, mfdir = ".",
     ptl <- advectMODPATH(copy(statem), t1, t2, MFt0, porosity,
                          dis[mfds], disl[[mfds]], basl[[mfds]],
                          hds, cbb, cbf,
-                         newdat, newcbf, transientl[[mfds]],
-                         if(is.finite(maxnp)) maxnp else 1e6L)
+                         newds, newcbf, transientl[[mfds]],
+                         MPmaxnp)
 
     # 5. sinks and degradation
     if(nrow(ptl)){
@@ -693,6 +705,11 @@ DRW <- function(rootname, description, mfdir = ".",
                           L = integer(0L), J_out = numeric(0L))
   }
   setkey(fluxout, ts)
+  #
+  # - clean up (leave MODPATH summary file)
+  MPfiles <- c(paste0("DRW", c(".ptr", ".rsp", ".dat", ".nam")),
+               "pathline", "endpoint")
+  file.remove(MPfiles[file.exists(MPfiles)])
 
 
   # z calculation ----
