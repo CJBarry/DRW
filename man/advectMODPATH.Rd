@@ -4,15 +4,15 @@
 \alias{advectMODPATH}
 \title{Particle Tracking Advection with MODPATH 5}
 \usage{
-advectMODPATH(mpdt, t1, t2, MFt0, phi_e, disnm, dis, bas, hds, cbb, cbf, newds,
-  newcbf, transient, maxnp)
+advectMODPATH(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e, disnm, dis, bas, hds, cbb,
+  cbf, newds, newcbf, transient, maxnp)
 }
 \arguments{
 \item{mpdt}{data.table; mobile particles}
 
 \item{t1, t2}{numeric [1]; time step start and end}
 
-\item{MFt0}{MODFLOW start time}
+\item{MFx0, MFy0, MFt0}{MODFLOW origin and start time}
 
 \item{phi_e}{porosity}
 

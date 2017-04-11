@@ -9,11 +9,12 @@
 #' @import RNetCDF
 #' @import data.table
 #' @importFrom stats punif
+#' @importFrom stats approxfun
 #'
 #' @return
 #' data.table, source term for \code{\link{DRW}}
 #'
-ST.DNAPL <- function(dnst){
+ST.DNAPL <- function(dnst, mfdata, gccs, grcs){
   hL <- dnst@DNAPLmodel@hL
   tmp <- data.table(x = dnst@xy[1L],
                     y = dnst@xy[2L],
@@ -36,7 +37,7 @@ ST.DNAPL <- function(dnst){
                      c(C, R, L), c(1L, 1L, 1L)))
   }, by = c("C", "R", "L")]
   tmp[, J := {
-    apply(dnst@Jeffluent, approxfun,
+    apply(dnst@Jeffluent, 1L, approxfun,
           x = dnst@time, yleft = 0)
   }]
   tmp[, c("C", "R", "z") := NULL]

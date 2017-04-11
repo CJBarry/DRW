@@ -4,7 +4,7 @@
 #'
 #' @param mpdt data.table; mobile particles
 #' @param t1,t2 numeric [1]; time step start and end
-#' @param MFt0 MODFLOW start time
+#' @param MFx0,MFy0,MFt0 MODFLOW origin and start time
 #' @param phi_e porosity
 #' @param disnm file name for DIS package
 #' @param dis DIS.MFpackage
@@ -22,7 +22,7 @@
 #'
 #' @import data.table
 #'
-advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
+advectMODPATH <- function(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e,
                           disnm, dis, bas, hds, cbb, cbf,
                           newds, newcbf, transient, maxnp){
   # write the DAT file if necessary
@@ -51,7 +51,8 @@ advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
   write(rsptxt(t2 - MFt0, newcbf, cbf, transient), "DRW.rsp")
 
   # write starting locations file
-  write(ptrtxt(mpdt[, .(x, y, L, zo)], t1 - MFt0), "DRW.ptr")
+  write(ptrtxt(mpdt[, list(x = x - MFx0, y = y - MFy0, L, zo)], t1 - MFt0),
+        "DRW.ptr")
 
   # find MODPATH executable
   mpexe <- system.file("exec/Mpathr5_0.exe", package = "DRW",
@@ -70,6 +71,7 @@ advectMODPATH <- function(mpdt, t1, t2, MFt0, phi_e,
   setnames(ptl, c("ptlno", "x", "y", "z_off", "z",
                   "t", "C", "R", "L", "timestep"))
   setkey(ptl, ptlno)
+  ptl[, c("x", "y") := list(x + MFx0, y + MFy0)]
   ptl
 }
 

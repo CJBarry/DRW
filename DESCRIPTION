@@ -20,6 +20,8 @@ Imports:
     data.table,
     ks,
     stringr,
+	stats,
+	graphics,
     sp
 Suggests:
     td,

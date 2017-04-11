@@ -4,7 +4,7 @@
 \alias{ST.DNAPL}
 \title{DRW source term from a DNAPL source term}
 \usage{
-ST.DNAPL(dnst)
+ST.DNAPL(dnst, mfdata, gccs, grcs)
 }
 \arguments{
 \item{dnst}{}

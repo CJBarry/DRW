@@ -30,7 +30,7 @@ test_that("MODPATH working", {
   # the system command instructs not to print the MODPATH output, so this
   #  operation should be silent
   expect_silent({
-    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, .2, disnm,
+    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                TRUE, TRUE, TRUE, 100L)
   })
@@ -38,15 +38,15 @@ test_that("MODPATH working", {
 
   # now try again, using the existing DAT and CBF files
   expect_silent({
-    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, .2, disnm,
+    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                FALSE, FALSE, TRUE, 100L)
   })
   expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
-  # check expected behaviour with MFt0
+  # check expected behaviour with MFt0 and origin
   expect_silent({
-    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 1000, .2, disnm,
+    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 1000, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                FALSE, FALSE, TRUE, 100L)
   })
@@ -55,6 +55,13 @@ test_that("MODPATH working", {
   # - the particle was released at the (artificially imposed) MODFLOW start
   #    time in this case, so the first time value should be 1000 - 1000 = 0
   expect_equal(ptl$t[1L], 0)
+  #
+  expect_silent({
+    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 10, 10, 0, .2, disnm,
+                               dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
+                               FALSE, FALSE, TRUE, 100L)
+  })
+  expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
   setwd(od)
 })
@@ -77,7 +84,7 @@ test_that("release into inactive cell", {
                                   L = 1L, zo = .5, m = 10)
 
   expect_silent({
-    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, .2, disnm,
+    ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
                                FALSE, FALSE, TRUE, 100L)
   })

@@ -446,12 +446,12 @@ DRW <- function(rootname, description, mfdir = ".",
   rel <- switch(class(source.term)[1L],
                 data.frame = as.data.table(source.term),
                 data.table = source.term,
-                DNAPLSourceTerm = ST.DNAPL(source.term),
+                DNAPLSourceTerm = ST.DNAPL(source.term, mfdatal, gccs, grcs),
                 list = rbindlist(lapply(source.term, function(x){
                   switch(class(x)[1L],
                          data.frame = as.data.table(x),
                          data.table = x,
-                         DNAPLSourceTerm = ST.DNAPL(x),
+                         DNAPLSourceTerm = ST.DNAPL(x, mfdatal, gccs, grcs),
                          `NULL` = data.table(x = numeric(0L),
                                              y = numeric(0L),
                                              L = integer(0L),
@@ -491,9 +491,17 @@ DRW <- function(rootname, description, mfdir = ".",
   # - initial value
   mfds <- 0L
   #
+  # - MODFLOW model origin
+  MFx0l <- sapply(mfdatal, att.get.nc, "NC_GLOBAL", "origin-x")
+  MFy0l <- sapply(mfdatal, att.get.nc, "NC_GLOBAL", "origin-y")
+  if(uniqueN(MFx0l) != 1L || uniqueN(MFy0l) != 1L){
+    stop("DRW: MODFLOW datasets have different origins")
+  }
+  MFx0 <- MFx0l[1L]; MFy0 <- MFy0l[1L]
+  #
   # - an initial value to put in the MODPATH DAt file, allocating memory
   #    for pathlines
-  MPmaxnp <- if(is.finite(maxnp)) maxnp else 1e6L
+  MPmaxnp <- if(is.finite(maxnp)) maxnp*2L else 1e6L
 
 
   # execute ----
@@ -578,7 +586,8 @@ DRW <- function(rootname, description, mfdir = ".",
     # - MODFLOW start time
     MFt0 <- dsett[mfds]
     #
-    ptl <- advectMODPATH(copy(statem), t1, t2, MFt0, porosity,
+    ptl <- advectMODPATH(copy(statem), t1, t2,
+                         MFx0, MFy0, MFt0, porosity,
                          dis[mfds], disl[[mfds]], basl[[mfds]],
                          hds, cbb, cbf,
                          newds, newcbf, transientl[[mfds]],
@@ -587,8 +596,8 @@ DRW <- function(rootname, description, mfdir = ".",
     # 5. sinks and degradation
     if(nrow(ptl)){
       mt <- MassTrack(ptl, mfdatal[[mfds]], wtopl[[mfds]],
-                porosity, statem$m, TRUE, TRUE, FALSE,
-                TRUE, TRUE, FALSE, TRUE, lambda, TRUE, t2)
+                      porosity, statem$m, TRUE, TRUE, FALSE,
+                      TRUE, TRUE, FALSE, TRUE, lambda, TRUE, t2)
       #
       # register mass lost to sinks
       fluxout[[drts]] <- mt$traces[ml != 0,
