@@ -71,7 +71,7 @@ advectMODPATH <- function(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e,
   setnames(ptl, c("ptlno", "x", "y", "z_off", "z",
                   "t", "C", "R", "L", "timestep"))
   setkey(ptl, ptlno)
-  ptl[, c("x", "y") := list(x + MFx0, y + MFy0)]
+  ptl[, c("x", "y", "t") := list(x + MFx0, y + MFy0, t + MFt0)]
   ptl
 }
 
