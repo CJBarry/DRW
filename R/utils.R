@@ -1,5 +1,11 @@
 # DRW package - utility functions
 
+# nc.imtx takes up a large proportion of the code run time - the ncdf4
+#  package's ncvar_get is slightly faster than RNetCDF's var.get.nc, but
+#  not vastly.  Perhaps thickness, for coalesce, could be determined for
+#  all layers together, rather than layer-by-layer, which would require
+#  fewer calls to nc.imtx.
+
 #' Index matrix for NetCDF
 #'
 #' Emulate the \code{A[B]} matrix indexing behaviour in R for NetCDF
@@ -20,6 +26,7 @@
 #' a vector whose type corresponds to that of \code{variable}
 #'
 #' @import RNetCDF
+#' @importFrom methods is
 #'
 nc.imtx <- function(ncfile, variable, imtx){
   stopifnot(is(ncfile, "NetCDF"))

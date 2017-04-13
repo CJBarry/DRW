@@ -70,15 +70,22 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
   }
 
   # find layer thicknesses
-  pdt[, thk := if(is.na(C) || is.na(R) || is.na(L)) NA else{
+  # - unique cell references
+  crls <- unique(pdt[, .(C, R, L)])
+  #
+  # - thickness for each cell reference
+  crls[!(is.na(C) | is.na(R) | is.na(L)), thk := {
     top.imtx <- cbind(C, R, L, mfts)
     bot.imtx <- cbind(C, R, L + 1L)
 
-    top <- nc.imtx(wtop, "wtop", top.imtx)
-    bot <- nc.imtx(mfdata, "elev", bot.imtx)
+    top <- DRW:::nc.imtx(wtop, "wtop", top.imtx)
+    bot <- DRW:::nc.imtx(mfdata, "elev", bot.imtx)
 
     top - bot
-  }, by = c("C", "R", "L")]
+  }]
+  #
+  # - join data tables to assign layer thicknesses to each particle
+  pdt <- pdt[crls, on = c("C", "R", "L")]
 
   # register particle mass that is in inactive cells and discard from state
   #  data table
