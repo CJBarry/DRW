@@ -54,7 +54,7 @@ test_that("MODPATH working", {
   #
   # - the particle was released at the (artificially imposed) MODFLOW start
   #    time in this case, so the first time value should be 1000 - 1000 = 0
-  expect_equal(ptl$t[1L], 0)
+  expect_equal(ptl$t[1L], 1000)
   #
   expect_silent({
     ptl <- DRW:::advectMODPATH(state, 1000, 2000, 10, 10, 0, .2, disnm,

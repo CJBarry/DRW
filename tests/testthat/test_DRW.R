@@ -36,7 +36,7 @@ test_that("basic functionality", {
 
   expect_silent({
     testDRW <- DRW("DRW_EXAMPLE", "demo", mfdir,
-                   "drw_mf_demo.nc", "drw_mf_demo_wtop.nc",
+                   mfdata, "drw_mf_demo_wtop.nc",
                    "drw_mf_demo.dis", bas, wel,
                    "drw_mf_demo.hds", "drw_mf_demo.cbb", "DRWtest.cbf",
                    newcbf = TRUE,

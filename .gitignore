@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+**/*~
 
 # files created during testing and examples
 drw_mf_demo_wtop.nc

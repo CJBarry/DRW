@@ -23,7 +23,7 @@
 #'  periods that lead on from one another, thus a historic flow model may
 #'  seamlessly be linked to a recent flow model, for example
 #' @param wtop
-#' NetCDF object, list of NetCDF objects or character string[Nmfds];
+#' NetCDF object, list of NetCDF objects or character string [Nmfds];
 #' NetCDF data sets of the cell-by-cell top of water in each cell (the
 #'  lower out of head and cell top); if character string file names are
 #'  used, the files needn't exist beforehand as they can be created using
@@ -196,7 +196,7 @@ DRW <- function(rootname, description, mfdir = ".",
                 D, vdepD, Rf = 1, lambda = 0, decay.sorbed = FALSE,
                 cd, mm, minnp = 100L, maxnp, Ndp = 2L,
                 init = NULL,
-                nc.to.mf = 1L, mfdata.split = FALSE,
+                nc.to.mf = 1L,
                 plot.state = TRUE,
                 keep.MF.cellref = TRUE,
                 time.mismatch.tol = 1e-3, ...){
@@ -236,6 +236,7 @@ DRW <- function(rootname, description, mfdir = ".",
   # --------------------------------------------------------------------- #
   #
   # - open NetCDFs
+  if(is(mfdata, "NetCDF")) mfdata <- list(mfdata)
   mfdatal <- lapply(mfdata, function(x){
     switch(class(x)[1L],
            character = open.nc(x),
@@ -247,7 +248,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - check nc.to.mf (which relates each element of mfdata to a MODFLOW
   #    model number)
-  if(!identical(length(nc.to.mf), length(ndset)))
+  if(!identical(length(nc.to.mf), ndset))
     stop("DRW: nc.to.mf is length ", length(nc.to.mf),
          " but mfdata is length ", length(ndset),
          "; in most cases nc.to.mf should be 1:length(mfdata)")
@@ -304,8 +305,8 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - is each model a transient model (or, specifically, do they contain
   #    more than one time step)
-  transientl <- sapply(mfdatal,
-                       function(x) dim.inq.nc(x, "NTS")$length > 1L)
+  transientl <- sapply(disl,
+                       function(x) sum(x$sps$NSTP) > 1L)
   #
   # - make sure that, if porosity is array, then it is 3D
   #  -- allows and corrects a 2D array if there is only one layer in the
@@ -335,10 +336,29 @@ DRW <- function(rootname, description, mfdir = ".",
   #  not given, this code automatically assembles the correct wtop NetCDF
   # --------------------------------------------------------------------- #
   #
-  # - determine if each MODFLOW NetCDF dataset is a subset
+  # - determine if each MODFLOW NetCDF dataset is a subset and whether it
+  #    is the first subset in a set
   mfdata.split <- vapply(mfdatal, function(nc){
     !is(try(att.inq.nc(nc, "NC_GLOBAL", "subset"), TRUE), "try-error")
   }, logical(1L))
+  mfss1 <- vapply(mfdatal, function(nc){
+    if(is(try(att.inq.nc(nc, "NC_GLOBAL", "subset"), TRUE),
+          "try-error")){
+      TRUE
+    }else att.get.nc(nc, "NC_GLOBAL", "subset_start_ts") == 1L
+  }, logical(1L))
+  if(!mfss1[1L]) stop("DRW: the first subset of the MODFLOW set is not given, so the start time of the MODFLOW results cannot be determined")
+  #
+  # - determine the start times of the groundwater model sets
+  #  -- this will be the same as dsett if none of the MODFLOW data sets are
+  #      split
+  #  -- if a data set is split, then the start time of the model set will
+  #      be repeated for each subset
+  mfsett <- numeric(ndset + 1L)
+  for(i in 1:ndset) mfsett[i] <- {
+    if(mfss1[i]) dsett[i] else mfsett[i - 1L]
+  }
+  mfsett[ndset + 1L] <- dsett[ndset + 1L]
   #
   wtopl <- if(missing(wtop)){
     Map(get.wtop.nc, mfdatal, paste0(rootname, "_wtop.nc"),
@@ -519,7 +539,10 @@ DRW <- function(rootname, description, mfdir = ".",
   # 9. plot
   # --------------------------------------------------------------------- #
   #
-  for(drts in 2:ndrts){
+  tsattempt <- NULL
+  for(drts in 2:ndrts) tsattempt <- try({
+    if(is(tsattempt, "try-error")) break
+
     # time at start and end of stress period
     t1 <- tvals[drts - 1L]
     t2 <- tvals[drts]
@@ -533,11 +556,11 @@ DRW <- function(rootname, description, mfdir = ".",
 
     # 1. bring state forward
     # - mobile
-    statem <- mob[[drts - 1L]]
+    statem <- copy(mob[[drts - 1L]])
     if(!is.null(statem)) statem[, ts := drts]
     #
     # - immobile
-    statei <- immob[[drts - 1L]]
+    statei <- copy(immob[[drts - 1L]])
     if(!is.null(statei)) statei[, ts := drts]
 
     # 2. source releases
@@ -581,17 +604,45 @@ DRW <- function(rootname, description, mfdir = ".",
     }
     #
     # - write MODPATH CBF input (composite budget file)?
-    newcbf <- mfds != o.mfds && newcbfl[mfds]
+    newcbf <- mfds != o.mfds && newcbfl[nc.to.mf[mfds]]
     #
     # - MODFLOW start time
-    MFt0 <- dsett[mfds]
+    MFt0 <- mfsett[mfds]
     #
     ptl <- advectMODPATH(copy(statem), t1, t2,
                          MFx0, MFy0, MFt0, porosity,
-                         dis[mfds], disl[[mfds]], basl[[mfds]],
+                         dis[nc.to.mf[mfds]],
+                         disl[[nc.to.mf[mfds]]],
+                         basl[[nc.to.mf[mfds]]],
                          hds, cbb, cbf,
-                         newds, newcbf, transientl[[mfds]],
+                         newds, newcbf,
+                         transientl[[nc.to.mf[mfds]]],
                          MPmaxnp)
+    #
+    # - correct time step number in case of split MODFLOW data set
+    if(mfdata.split[mfds]){
+      ptl[, timestep := timestep - as.integer({
+        att.get.nc(mfdatal[[mfds]], "NC_GLOBAL", "subset_start_ts")
+      }) + 1L]
+
+      # When the end time of a MODPATH 5 simulation exactly corresponds
+      #  with a MODFLOW time step divide, the particles are brought forward
+      #  into the next time step and the z-offset adjusted for the head in
+      #  the next time step.  With split MODFLOW NetCDFs, this causes an
+      #  error with MassTrack which uses the NetCDF data set which won't
+      #  then have the last time step in that NetCDF.  Similarly, when the
+      #  start time is exactly a MODFLOW time step divide, then the previous
+      #  time step is included with a trajectory of length and duration 0.
+      #  This is not necessary and is simply deleted here (recognised as
+      #  having time step 0 after the above correction).  MODPATH corrects
+      #  the z-offset in this way when the head may change between time
+      #  steps.
+      if(any(ptl$timestep == 0L))
+        ptl <- ptl[timestep != 0L]
+      if(any(ptl$timestep >
+             (snts <- dim.inq.nc(mfdatal[[mfds]], "sNTS")$length)))
+        ptl <- ptl[timestep <= snts]
+    }
 
     # 5. sinks and degradation
     if(nrow(ptl)){
@@ -679,7 +730,8 @@ DRW <- function(rootname, description, mfdir = ".",
     if(plot.state){
       # never stop running because this fails
       try(plotDRWstate(statem, rel, drts, mfsp,
-                       basl[[mfds]], well[[mfds]], gccs, grcs, ...))
+                       basl[[nc.to.mf[mfds]]], well[[nc.to.mf[mfds]]],
+                       gccs, grcs, ...))
     }
 
     # 10. save
@@ -690,7 +742,7 @@ DRW <- function(rootname, description, mfdir = ".",
     #    are NULL
     mob[drts] <- list(statem)
     immob[drts] <- list(statei)
-  }
+  })
   #
   # - unpack
   mob <- rbindlist(mob)
@@ -744,6 +796,10 @@ DRW <- function(rootname, description, mfdir = ".",
       top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
       bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
 
+      HDRY <- att.get.nc(mfdatal[[mfds]], "Head", "HDRY")
+      top[abs(top) < abs(HDRY)*1.00001 &
+            abs(top) > abs(HDRY)*0.99999] <- NA_real_
+
       # qunif reads a quantile from a uniform distribution; it is fully
       #  vectorised
       qunif(zo, bot, top)
@@ -756,6 +812,10 @@ DRW <- function(rootname, description, mfdir = ".",
 
       top <- nc.imtx(wtopl[[mfds]], "wtop", top.imtx)
       bot <- nc.imtx(mfdatal[[mfds]], "elev", bot.imtx)
+
+      HDRY <- att.get.nc(mfdatal[[mfds]], "Head", "HDRY")
+      top[abs(top) < abs(HDRY)*1.00001 &
+            abs(top) > abs(HDRY)*0.99999] <- NA_real_
 
       qunif(zo, bot, top)
     }, by = mfds]
@@ -796,7 +856,7 @@ DRW <- function(rootname, description, mfdir = ".",
                      coalescing = mget(c("cd", "mm", "minnp", "maxnp")),
                      description = description,
                      MFinfo = MFinfo,
-                     run.timings = c(run.end, run.start))
+                     run.timings = c(run.start, run.end))
   #
   saveRDS(result, paste0(rootname, ".rds"))
   #

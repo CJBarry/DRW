@@ -74,7 +74,7 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
   crls <- unique(pdt[, .(C, R, L)])
   #
   # - thickness for each cell reference
-  crls[!(is.na(C) | is.na(R) | is.na(L)), thk := {
+  crls[!(is.na(C) | is.na(R) | is.na(L)), thk := if(!.N) numeric(0L) else{
     top.imtx <- cbind(C, R, L, mfts)
     bot.imtx <- cbind(C, R, L + 1L)
 

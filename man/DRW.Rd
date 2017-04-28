@@ -8,8 +8,8 @@ DRW(rootname, description, mfdir = ".", mfdata, wtop, dis, bas, wel, hds, cbb,
   cbf, newcbf = TRUE, source.term, STna.rm = FALSE, porosity, start.t,
   end.t, dt, D, vdepD, Rf = 1, lambda = 0, decay.sorbed = FALSE, cd, mm,
   minnp = 100L, maxnp, Ndp = 2L, init = NULL, nc.to.mf = 1L,
-  mfdata.split = FALSE, plot.state = TRUE, keep.MF.cellref = TRUE,
-  time.mismatch.tol = 0.001, ...)
+  plot.state = TRUE, keep.MF.cellref = TRUE, time.mismatch.tol = 0.001,
+  ...)
 }
 \arguments{
 \item{rootname}{character string;
@@ -32,7 +32,7 @@ the MODFLOW data sets in NetCDF form (see \code{\link[Rflow]{GW.nc}}),
  periods that lead on from one another, thus a historic flow model may
  seamlessly be linked to a recent flow model, for example}
 
-\item{wtop}{NetCDF object, list of NetCDF objects or character string[Nmfds];
+\item{wtop}{NetCDF object, list of NetCDF objects or character string [Nmfds];
 NetCDF data sets of the cell-by-cell top of water in each cell (the
  lower out of head and cell top); if character string file names are
  used, the files needn't exist beforehand as they can be created using
