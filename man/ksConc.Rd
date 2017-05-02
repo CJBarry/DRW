@@ -26,7 +26,8 @@ smoothing distance for kernel smooth: too small and the result will be
  patchy, too large and the result will be too spread}
 
 \item{H}{matrix [2, 2];
-alternative way of specifying smoothing (see \code{\link[ks]{kde}})}
+alternative, lower level way of specifying smoothing (see
+ \code{\link[ks]{kde}})}
 
 \item{binned}{logical [1];
 see \code{\link[ks]{kde}}; \code{NA} uses binning for particle sets
@@ -40,15 +41,25 @@ see \code{\link[ks]{kde}}; \code{NA} uses binning for particle sets
 
 \item{Kylim}{\code{NULL} or numeric [2]}
 
-\item{...}{addition arguments for \code{\link[ks]{kde}}}
+\item{...}{additional arguments for \code{\link[ks]{kde}}}
 
 \item{ptype}{\code{"plume"} (the default) or \code{"sorbed"}}
 }
 \value{
-
+List object of class kDRW with elements:\cr
+\code{$conc} numeric [x, y, L, ts]; concentration estimate\cr
+\code{$coords} list:\cr
+\code{..$x,y} numeric []; x and y grid divide co-ordinates (note not the
+ cell centres)\cr
+\code{..$L,ts} integer []; layers and time steps that are present\cr
+\code{$H} numeric [2, 2]; the H matrix used for smoothing (see
+ \code{\link[ks]{kde}})
 }
 \description{
-Weighted Kernel Density Estimate of Concentration
+A post-processing tool for \code{\link{DRW}}.  This function gives a
+ distributed concentration estimate for a DRW result, using a weighted
+ kernel density estimate from the particles, using
+ \code{\link[ks]{kde}}.
 }
 \examples{
 setwd(mfdir <- system.file(package = "DRW"))
@@ -56,8 +67,13 @@ drmod <- readRDS("DRW_EXAMPLE.rds")
 
 kdr <- ksConc(drmod, "drw_mf_demo.nc", "drw_mf_demo_wtop.nc", 10,
               smd = 20, Kxlim = "mf")
-with(kdr, Rflow::MFimage(conc[,, 1L, 15L], coords$x, coords$y,
-                         col = grDevices::rainbow(51L)))
+
+# Note here that the result is indexed using strings for the 3rd and 4th
+#  dimensions.  This is much less likely to cause confusion because the
+#  layers and time steps included are likely not to be a simple sequence
+#  starting from 1.
+with(kdr, image(z = conc[,, "L1", "ts10"], coords$x, coords$y,
+                col = grDevices::rainbow(51L)))
 
 }
 
