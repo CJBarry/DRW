@@ -30,6 +30,7 @@
 #' data.table (ts, x, y, L, zo, m)
 #'
 #' @import data.table
+#' @importFrom pracma erfinv
 #' @importFrom stats runif
 #' @importFrom stats rnorm
 #'
@@ -57,39 +58,36 @@ disperseRW <- function(mpdt, D, vdepD, dt, Ndp,
   #  -- a random uniform distribution between -pi and pi radians
   #  -- if symmetrical, it is ensured that dispersion pairs are dispersed
   #      in exactly opposite directions
-  mpdt[, phi := if(sym){
+  mpdt[, xi2 := if(sym){
     # using R's recycling feature (note that there will always be an even
     #  number of rows at this stage)
-    rep(runif(.N/2, -pi, pi), each = 2L) + c(0, pi)
-  }else runif(.N, -pi, pi)]
+    rep(runif(.N/2, -1, 1), each = 2L) + c(0, 1)
+  }else runif(.N, -1, 1)]
   #
   # - displacement
   #  -- dimensionless
   #   --- a random normal distribution with sd of 1
   #   --- if symmetrical, it is ensured that dispersion pairs have the same
   #        dimensionless displacement
-  mpdt[, disp_ := if(sym){
-    rep(rnorm(.N/2), each = 2L)
-  }else rnorm(.N)]
+  mpdt[, xi1 := if(sym){
+    rep(runif(.N/2, -1, 1), each = 2L)
+  }else runif(.N, -1, 1)]
 
-  # apply displacement
-  mpdt[, c("x", "y") := {
-    # here, real-world means in real-world co-ordinates, i.e. not
-    #  dimensionless
+  mpdt[, rprime := erfinv(xi1)]
+  mpdt[, phi := xi2*pi]
+  mpdt[, c("Deltax", "Deltay") := {
+    DL <- avv*D[1L]
+    DT <- avv*D[2L]
 
-    # real-world dispersion coefficient, allowing for anisotropic
-    #  dispersion (longitudinal, transverse)
-    # - multiplied by the velocity for velocity-dependent dispersion (avv
-    #    was set to 1 earlier if vdepD = FALSE)
-    DC <- avv*
-      (dt*(D[1L]*cos(phi - traj))^2L + (D[2L]*sin(phi - traj))^2L)^.5
+    B <- 2^1.5*dt^.5
+    dxl <- B*DL^.5*rprime*cos(phi)
+    dxt <- B*DT^.5*rprime*sin(phi)
 
-    # real-world dispersion length
-    disp <- DC*disp_
-
-    list(x + disp*cos(phi),
-         y + disp*sin(phi))
+    # rotation applied
+    list(dxl*cos(traj) - dxt*sin(traj),
+         dxl*sin(traj) + dxt*cos(traj))
   }]
+  mpdt[, c("x", "y") := list(x + Deltax, y + Deltay)]
 
   # return
   mpdt[, .(ts, x, y, L, zo, m)]
