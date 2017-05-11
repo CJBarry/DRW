@@ -21,6 +21,7 @@ Imports:
     ks,
     stringr,
 	  stats,
+	  pracma,
 	  graphics,
     sp
 Suggests:

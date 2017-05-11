@@ -17,7 +17,7 @@ test_that("disperseRW", {
 
     D <- sample(3:24, 2L, TRUE)
     vdepD <- sample(c(TRUE, FALSE), 1L)
-    Ndp <- 50L
+    Ndp <- 2000L
     sym <- sample(c(TRUE, FALSE), 1L)
 
     expect_silent(dstate <- disperseRW(state, D, vdepD, dt <- 2, Ndp, sym))
@@ -44,7 +44,7 @@ test_that("disperseRW", {
       cat("Ndp: "); print(Ndp)
       cat("sym: "); print(sym)
 
-      plot(dstate[, .(x, y)], col = "red", asp = 1)
+      plot(dstate[, .(x, y)], col = "#FF000020", pch = 16L, asp = 1)
       lines(state[, list(x - c(s*cos(traj), 0),
                          y - c(s*sin(traj), 0))], lwd = 4)
       points(state[, .(x, y)], cex = 3, lwd = 4)
@@ -53,9 +53,9 @@ test_that("disperseRW", {
              lty = 1L, lwd = c(NA, NA, 4),
              col = c("black", "red", "black"), ncol = 3L)
 
-      # plot characteristic length ellipse
-      r0 <- ((if(vdepD) state$s/dt else 1)*D[1L]*dt)^.5
-      r1 <- ((if(vdepD) state$s/dt else 1)*D[2L]*dt)^.5
+      # plot one sd ellipse
+      r0 <- ((if(vdepD) state$s/dt else 1)*D[1L]*2*dt)^.5
+      r1 <- ((if(vdepD) state$s/dt else 1)*D[2L]*2*dt)^.5
       phi0 <- -state$traj
       lines(t(vapply(seq(-pi, pi, length.out = 101L),
                      function(phi){
@@ -64,7 +64,27 @@ test_that("disperseRW", {
                            c(r0*cos(phi), r1*sin(phi)))
                      }, numeric(2L))))
 
-      expect_equal(readline("looks correct? (y/n)"), "y")
+      expect_equal(readline("1sd ellipse looks correct? (y/n)"), "y")
     }
+  }
+
+  # check sd is roughly correct
+  for(trial in 1:5){
+    state <- data.table::data.table(pno = 1L, ts = 8L,
+                                    x = 10, y = 5.6,
+                                    L = 1L, zo = .5, m = 10,
+                                    s = stats::runif(1L, 2, 4),
+                                    traj = 0)
+
+    D <- sample(3:24, 2L, TRUE)
+    vdepD <- sample(c(TRUE, FALSE), 1L)
+    Ndp <- 200000L
+    sym <- sample(c(TRUE, FALSE), 1L)
+
+    expect_silent(dstate <- disperseRW(state, D, vdepD, dt <- 2, Ndp, sym))
+
+    expectsd <- ((if(vdepD) state$s/dt else 1)*D*2*dt)^.5
+
+    expect_equal(c(sd(dstate$x), sd(dstate$y)), expectsd, tolerance = 1e-1)
   }
 })
