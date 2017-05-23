@@ -2,8 +2,8 @@
 % Please edit documentation in R/analyse.R
 \name{DRWwell-analysis}
 \alias{DRWwell-analysis}
-\alias{wellJ}
 \alias{wellC}
+\alias{wellJ}
 \title{Analyse receptors in a DRW model output}
 \usage{
 wellJ(dr, welref)
@@ -44,3 +44,4 @@ In each case, the elements of the list are named giving the cell
 Extract the flux to individual receptors and calculate the abstracted
  concentration to receptors in the output of a \code{\link{DRW}} model.
 }
+

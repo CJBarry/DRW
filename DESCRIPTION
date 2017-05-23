@@ -23,7 +23,9 @@ Imports:
 	  stats,
 	  pracma,
 	  graphics,
-    sp
+	  grDevices,
+    sp,
+    methods
 Suggests:
     td,
     testthat

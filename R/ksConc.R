@@ -177,15 +177,23 @@ ksConc <- function(DRWmodel, mfdata, wtop, dkcell, ts = NULL, L = NULL,
   epts <- expand.grid(x = xpts, y = ypts)
   setDT(epts)
   #
-  #  -- determine C and R references and water thickness at eval points
+  #  -- determine C and R references and water thickness times porosity
+  #      at eval points
   epts[, C := cellref.loc(x, gccs(mfdatal[[1L]], TRUE))]
   epts[, R := cellref.loc(y, grcs(mfdatal[[1L]], TRUE), TRUE)]
-  thk <- array(0, c(length(xpts), length(ypts), length(Ls), length(tss)),
-               list(NULL, NULL, paste0("L", Ls), paste0("ts", tss)))
+  thkphi <- array(0, c(length(xpts), length(ypts), length(Ls), length(tss)),
+                  list(NULL, NULL, paste0("L", Ls), paste0("ts", tss)))
   epts[, {
     for(Ln in Ls){
       bot <- nc.imtx(mfdatal[[1L]], "elev",
                      cbind(C, R, Ln + 1L))
+
+      # get porosity, which may in a single-value 1D array, a layer-by-
+      #  layer array or a MODFLOW cell-by-cell 3D array
+      phi <- if(length(phids <- dim(DRWmodel@porosity)) == 1L){
+        if(phids == 1L) as.vector(DRWmodel@porosity) else
+          DRWmodel@porosity[Ln]
+      }else DRWmodel@porosity[,, Ln]
 
       for(tsn in tss){
         ds <- pdt[ts == tsn, unique(mfds)]
@@ -197,7 +205,7 @@ ksConc <- function(DRWmodel, mfdata, wtop, dkcell, ts = NULL, L = NULL,
         HDRY <- att.get.nc(mfdatal[[ds]], "Head", "HDRY")
         top[top == HDRY] <- NA_real_
 
-        thk[,, paste0("L", Ln), paste0("ts", tsn)] <<- top - bot
+        thkphi[,, paste0("L", Ln), paste0("ts", tsn)] <<- (top - bot)*phi
       }
     }
     NULL
@@ -223,8 +231,8 @@ ksConc <- function(DRWmodel, mfdata, wtop, dkcell, ts = NULL, L = NULL,
     # to get mass in 2D cell:
     mkcell <- k$estimate*prod(dkcell)*sum(m)
 
-    # volume in each k cell
-    Vkcell <- prod(dkcell)*thk[,, paste0("L", L), paste0("ts", ts)]
+    # volume in each k cell: width*length*phreatic thickness*porosity
+    Vkcell <- prod(dkcell)*thkphi[,, paste0("L", L), paste0("ts", ts)]
 
     ar[,, paste0("L", L), paste0("ts", ts)] <<- mkcell/Vkcell
 
