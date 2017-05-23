@@ -2,6 +2,8 @@
 
 export(DRW)
 export(ksConc)
+export(wellC)
+export(wellJ)
 exportClasses(DRWmodel)
 import(MassTrack)
 import(RNetCDF)
