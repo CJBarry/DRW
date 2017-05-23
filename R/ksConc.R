@@ -189,9 +189,11 @@ ksConc <- function(DRWmodel, mfdata, wtop, dkcell, ts = NULL, L = NULL,
 
       for(tsn in tss){
         ds <- pdt[ts == tsn, unique(mfds)]
+        mfts <- pdt[ts == tsn, unique(mfts)]
         stopifnot(length(ds) == 1L)
+        stopifnot(length(mfts) == 1L)
 
-        top <- nc.imtx(wtopl[[ds]], "wtop", cbind(C, R, Ln, tsn))
+        top <- nc.imtx(wtopl[[ds]], "wtop", cbind(C, R, Ln, mfts))
         HDRY <- att.get.nc(mfdatal[[ds]], "Head", "HDRY")
         top[top == HDRY] <- NA_real_
 
