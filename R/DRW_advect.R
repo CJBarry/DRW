@@ -69,7 +69,7 @@ advectMODPATH <- function(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e,
   }
   # read pathline file, checking first to ensure it isn't empty asides from
   #  header
-  ptl <- if(length(readLines("pathline", 2L)) != 1L){
+  ptl <- if(length(readLines("pathline", 2L)) == 2L){
     fread("pathline", skip = 1L)
   }else{
     data.table(matrix(nrow = 0L, ncol = 10L))
