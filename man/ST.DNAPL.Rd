@@ -7,7 +7,12 @@
 ST.DNAPL(dnst, mfdata, gccs, grcs)
 }
 \arguments{
-\item{dnst}{}
+\item{dnst}{\link[DNAPL]{DNAPLSourceTerm} object}
+
+\item{mfdata}{list of NetCDFs of MODFLOW output}
+
+\item{gccs, grcs}{numeric[];
+column and row divider co-ordinates}
 }
 \value{
 data.table, source term for \code{\link{DRW}}

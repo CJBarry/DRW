@@ -50,6 +50,7 @@ test_that("basic functionality", {
 
   # check that the saved object is the same as the returned object
   expect_equal(testDRW, readRDS("DRW_EXAMPLE.rds"))
+  expect_true(file.remove("DRW_EXAMPLE.rds"))
 
   # time steps in this simple case
   expect_equal(testDRW@time, seq(1000, 15000, 1000), tolerance = .1)
@@ -73,6 +74,29 @@ test_that("basic functionality", {
                     cd = c(20, 10), mm = 1e-7, minnp = 100L, maxnp = 2e4L,
                     Ndp = 4L)
   })
+
+  # able to use constant numeric values for source.term$J
+  expect_silent({
+    testDRW <- DRW("DRW_EXAMPLE", "demo", mfdir,
+                   mfdata, "drw_mf_demo_wtop.nc",
+                   "drw_mf_demo.dis", bas, wel,
+                   "drw_mf_demo.hds", "drw_mf_demo.cbb", "DRWtest.cbf",
+                   newcbf = TRUE,
+                   source.term = {
+                     data.table::data.table(x = 625, y = c(425, 475),
+                                            L = 1L, zo = .5,
+                                            J = c(1, 2))
+                   },
+                   porosity = matrix(.1, 30L, 20L),
+                   start.t = 1000, end.t = 15000, dt = 1000,
+                   D = c(10, 1), vdepD = TRUE,
+                   cd = c(20, 10), mm = 1e-7, minnp = 100L, maxnp = 2e4L,
+                   Ndp = 4L)
+  })
+  expect_equal(sapply(sample(1:50, 5L), testDRW@release$J[[1L]]),
+               rep(1, 5L))
+  expect_equal(sapply(sample(1:50, 5L), testDRW@release$J[[2L]]),
+               rep(2, 5L))
 
   setwd(od)
 })
@@ -246,7 +270,7 @@ test_that("regression tests", {
   }
 
   # correct
-  expect_silent(testDRW <- basicDRWf())
+  # expect_silent(testDRW <- basicDRWf())
 
   # basic regular expression matching pattern
   # - this ensures that the errors are caught by the DRW master function,

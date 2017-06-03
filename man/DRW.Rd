@@ -9,7 +9,7 @@ DRW(rootname, description, mfdir = ".", mfdata, wtop, dis, bas, wel, hds, cbb,
   end.t, dt, D, vdepD, Rf = 1, lambda = 0, decay.sorbed = FALSE, cd, mm,
   minnp = 100L, maxnp, Ndp = 2L, init = NULL, nc.to.mf = 1L,
   plot.state = TRUE, keep.MF.cellref = TRUE, time.mismatch.tol = 0.001,
-  ...)
+  ..., keepMPfiles = FALSE)
 }
 \arguments{
 \item{rootname}{character string;
@@ -45,7 +45,7 @@ file paths to DIS package files corresponding to the MODFLOW data sets
 
 \item{bas}{BAS.MFpackage object (or list thereof) or character string [Nmfds];
 the BAS packages corresponding to mfdata (see
- \code{\link[Rflow]{read.BAS}})}
+ \code{\link[Rflow]{read.BAS}}); only the \code{$IBOUND} element is used}
 
 \item{wel}{Optional: WEL.MFpackage object (or list thereof) or character string
  [Nmfds];
@@ -73,10 +73,12 @@ Whether MODPATH 5 should rewrite the CBF file.  If you have modified the
 \item{source.term}{data.table, data.frame, \link[DNAPL]{DNAPLSourceTerm} object, or list of
  any combination of these;
 information about the transient point releases in the system; if a data
- table or frame, columns should be: x, y (location), L (MODFLOW layer),
- zo (z-offset within layer) and J (list of functions of one variable,
- time, returning values representing source term flux, in units of mass
- per time, at this point)}
+ table or frame, columns should be: x, y (location in the same absolute
+ co-ordinate system as \code{mfdata}), L (MODFLOW layer), zo (z-offset
+ within layer) and J (list of functions of one variable, time, returning
+ values representing source term flux, in units of mass per time OR
+ numeric values representing constant release rates in units of mass per
+ time)}
 
 \item{STna.rm}{logical [1];
 if \code{TRUE}, any \code{NA} values resulting from the source term
@@ -163,6 +165,10 @@ various time comparisons are made during the model in order to check
 
 \item{...}{graphical parameters such as \code{xlim} (not axis labels, titles,
 \code{asp} or \code{zlim})}
+
+\item{keepMPfiles}{logical [1];
+use for debugging when MODPATH not working: doesn't delete the MODPATH
+ files}
 }
 \value{
 A \link{DRWmodel} object, invisibly.  The result is also saved to file:

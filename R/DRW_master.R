@@ -36,7 +36,7 @@
 #' @param bas
 #' BAS.MFpackage object (or list thereof) or character string [Nmfds];
 #' the BAS packages corresponding to mfdata (see
-#'  \code{\link[Rflow]{read.BAS}})
+#'  \code{\link[Rflow]{read.BAS}}); only the \code{$IBOUND} element is used
 #' @param wel
 #' Optional: WEL.MFpackage object (or list thereof) or character string
 #'  [Nmfds];
@@ -64,10 +64,12 @@
 #' data.table, data.frame, \link[DNAPL]{DNAPLSourceTerm} object, or list of
 #'  any combination of these;
 #' information about the transient point releases in the system; if a data
-#'  table or frame, columns should be: x, y (location), L (MODFLOW layer),
-#'  zo (z-offset within layer) and J (list of functions of one variable,
-#'  time, returning values representing source term flux, in units of mass
-#'  per time, at this point)
+#'  table or frame, columns should be: x, y (location in the same absolute
+#'  co-ordinate system as \code{mfdata}), L (MODFLOW layer), zo (z-offset
+#'  within layer) and J (list of functions of one variable, time, returning
+#'  values representing source term flux, in units of mass per time OR
+#'  numeric values representing constant release rates in units of mass per
+#'  time)
 #' @param STna.rm
 #' logical [1];
 #' if \code{TRUE}, any \code{NA} values resulting from the source term
@@ -154,6 +156,10 @@
 #' @param ...
 #' graphical parameters such as \code{xlim} (not axis labels, titles,
 #'  \code{asp} or \code{zlim})
+#' @param keepMPfiles
+#' logical [1];
+#' use for debugging when MODPATH not working: doesn't delete the MODPATH
+#'  files
 #'
 #' @return
 #' A \link{DRWmodel} object, invisibly.  The result is also saved to file:
@@ -199,7 +205,8 @@ DRW <- function(rootname, description, mfdir = ".",
                 nc.to.mf = 1L,
                 plot.state = TRUE,
                 keep.MF.cellref = TRUE,
-                time.mismatch.tol = 1e-3, ...){
+                time.mismatch.tol = 1e-3, ...,
+                keepMPfiles = FALSE){
 
   run.start <- Sys.time()
 
@@ -237,13 +244,17 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - open NetCDFs
   if(is(mfdata, "NetCDF")) mfdata <- list(mfdata)
+  #
+  #  -- which elements of mfdata are given as character strings - these
+  #      will need to be closed later
+  mfdatawaschar <- sapply(mfdata, is.character)
   mfdatal <- lapply(mfdata, function(x){
     switch(class(x)[1L],
            character = open.nc(x),
            NetCDF = x,
            stop("DRW: invalid mfdata"))
   })
-  on.exit(lapply(mfdatal, close.nc), add = TRUE)
+  on.exit(lapply(mfdatal[mfdatawaschar], close.nc), add = TRUE)
   ndset <- length(mfdatal)
   #
   # - check nc.to.mf (which relates each element of mfdata to a MODFLOW
@@ -361,9 +372,11 @@ DRW <- function(rootname, description, mfdir = ".",
   mfsett[ndset + 1L] <- dsett[ndset + 1L]
   #
   wtopl <- if(missing(wtop)){
+    wtopwaschar <- TRUE
     Map(get.wtop.nc, mfdatal, paste0(rootname, "_wtop.nc"),
         nts.dtit = ifelse(mfdata.split, "sNTS", "NTS"))
   }else{
+    wtopwaschar <- sapply(wtop, is.character)
     Map(function(m, w, nd){
       switch(class(w),
              character = {
@@ -374,7 +387,7 @@ DRW <- function(rootname, description, mfdir = ".",
     }, mfdatal, wtop, ifelse(mfdata.split, "sNTS", "NTS"))
   }
   #
-  on.exit(lapply(wtopl, close.nc), add = TRUE)
+  on.exit(lapply(wtopl[wtopwaschar], close.nc), add = TRUE)
 
 
   # set up DRW time steps ----
@@ -483,6 +496,10 @@ DRW <- function(rootname, description, mfdir = ".",
                                     L = integer(0L), zo = numeric (0L),
                                     J = list()),
                 stop("DRW: source.term is not valid"))
+  #
+  #  -- allow constant value input for source.term$J
+  if(is.numeric(rel$J)) rel$J <- lapply(rel$J,
+                                        function(flux) function(t) flux)
   if(!all(c("x", "y", "L", "zo", "J") %in% names(rel)))
     stop("DRW: source.term does not have the correct columns")
   #
@@ -576,7 +593,7 @@ DRW <- function(rootname, description, mfdir = ".",
     #
     # - add released particles to current particle swarm
     statem <- rbind(if(is.data.table(statem)){
-      statem[, .(ts, x, y, L, zo, m)]
+      statem[, list(ts, x, y, L, zo, m)]
     },
     rel[mtmp != 0, list(ts = drts,
                         x = x, y = y,
@@ -604,17 +621,28 @@ DRW <- function(rootname, description, mfdir = ".",
     }
     #
     # - write MODPATH CBF input (composite budget file)?
-    newcbf <- mfds != o.mfds && newcbfl[nc.to.mf[mfds]]
+    newcbf <- newds && newcbfl[nc.to.mf[mfds]]
     #
     # - MODFLOW start time
     MFt0 <- mfsett[mfds]
+    #
+    # - if this is a new MODFLOW data set, ensure that at least one
+    #    particle is released in order to force the writing of the CBF file
+    #    if required
+    if(is.null(statem) || !nrow(statem)){
+      statem <- data.table(ts = drts,
+                           x = median(gccs), y = median(grcs),
+                           L = 1L, zo = .5, m = 0)
+    }
     #
     ptl <- advectMODPATH(copy(statem), t1, t2,
                          MFx0, MFy0, MFt0, porosity,
                          dis[nc.to.mf[mfds]],
                          disl[[nc.to.mf[mfds]]],
                          basl[[nc.to.mf[mfds]]],
-                         hds, cbb, cbf,
+                         hds[nc.to.mf[mfds]],
+                         cbb[nc.to.mf[mfds]],
+                         cbf[nc.to.mf[mfds]],
                          newds, newcbf,
                          transientl[[nc.to.mf[mfds]]],
                          MPmaxnp)
@@ -768,9 +796,11 @@ DRW <- function(rootname, description, mfdir = ".",
   setkey(fluxout, ts)
   #
   # - clean up (leave MODPATH summary file)
-  MPfiles <- c(paste0("DRW", c(".ptr", ".rsp", ".dat", ".nam")),
-               "pathline", "endpoint")
-  file.remove(MPfiles[file.exists(MPfiles)])
+  if(!keepMPfiles){
+    MPfiles <- c(paste0("DRW", c(".ptr", ".rsp", ".dat", ".nam")),
+                 "pathline", "endpoint")
+    file.remove(MPfiles[file.exists(MPfiles)])
+  }
 
 
   # z calculation ----
@@ -848,7 +878,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   result <- DRWmodel(time = tvals,
                      plume = mob, sorbed = immob,
-                     release = rel[, .(x, y, L, zo, J)],
+                     release = rel[, list(x, y, L, zo, J)],
                      fluxout = fluxout, lost = lost,
                      dispersion = mget(c("D", "vdepD", "Ndp")),
                      reactions = mget(c("Rf", "lambda", "decay.sorbed")),

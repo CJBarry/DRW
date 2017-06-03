@@ -67,7 +67,13 @@ advectMODPATH <- function(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e,
   if(!file.exists("pathline") || file.mtime("pathline") < tm - 5){
     stop("MODPATH failed")
   }
-  ptl <- fread("pathline", skip = 1L)
+  # read pathline file, checking first to ensure it isn't empty asides from
+  #  header
+  ptl <- if(length(readLines("pathline", 2L)) != 1L){
+    fread("pathline", skip = 1L)
+  }else{
+    data.table(matrix(nrow = 0L, ncol = 10L))
+  }
   setnames(ptl, c("ptlno", "x", "y", "z_off", "z",
                   "t", "C", "R", "L", "timestep"))
   setkey(ptl, ptlno)
