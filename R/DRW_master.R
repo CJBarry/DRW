@@ -773,21 +773,21 @@ DRW <- function(rootname, description, mfdir = ".",
   })
   #
   # - unpack
-  mob <- rbindlist(mob)
+  mob <- rbindlist(mob, use.names = TRUE, fill = TRUE)
   if(!length(mob)){
     mob <- data.table(ts = integer(0L), x = numeric(0L), y = numeric(0L),
                         L = integer(0L), zo = numeric(0L), m = numeric(0L),
                         mfds = integer(0L), mfts = integer(0L))
   }
   setkey(mob, ts)
-  immob <- rbindlist(immob)
+  immob <- rbindlist(immob, use.names = TRUE, fill = TRUE)
   if(!length(immob)){
     immob <- data.table(ts = integer(0L), x = numeric(0L), y = numeric(0L),
                         L = integer(0L), zo = numeric(0L), m = numeric(0L),
                         mfds = integer(0L), mfts = integer(0L))
   }
   setkey(immob, ts)
-  fluxout <- rbindlist(fluxout)
+  fluxout <- rbindlist(fluxout, use.names = TRUE, fill = TRUE)
   if(!length(fluxout)){
     fluxout <- data.table(ts = integer(0L),
                           C = integer(0L), R = integer(0L),
