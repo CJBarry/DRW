@@ -512,9 +512,14 @@ DRW <- function(rootname, description, mfdir = ".",
                                    "back", "right", "other")))
   #
   # - initial state
-  mob[[1L]] <- if(load.init) init@plume[ts == ts.init]
-  immob[[1L]] <- if(load.init && is.data.table(init@sorbed))
-    init@sorbed[ts == ts.init]
+  if(load.init){
+    mob[[1L]] <- init@plume[ts == ts.init]
+    mob[[1L]][, ts := 1L]
+    if(is.data.table(init@sorbed)){
+      immob[[1L]] <- init@sorbed[ts == ts.init]
+      immob[[1L]][, ts := 1L]
+    }
+  }
   #
   # - set the column orders to be used for the data tables
   #  -- during solution
