@@ -55,8 +55,8 @@ advectMODPATH <- function(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e,
         "DRW.ptr")
 
   # find MODPATH executable
-  mpexe <- system.file("exec/Mpathr5_0.exe", package = "DRW",
-                       mustWork = TRUE)
+  mpexe <- paste0("\"", system.file("exec/Mpathr5_0.exe", package = "DRW",
+                                    mustWork = TRUE), "\"")
 
   # run MODPATH, noting execution time
   system(paste0(mpexe, " DRW.rsp"), intern = TRUE, wait = TRUE,
