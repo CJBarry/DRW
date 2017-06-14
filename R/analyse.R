@@ -118,7 +118,7 @@ wellC <- function(dr, WEL, DIS, MFt0, welref = WEL){
   conc <- Map(`/`, J, lapply(Q, `[`, drt.mft))
 
   # turn Inf to NA
-  for(i in 1:length(conc)) conc[[i]][!is.finite(conc)] <- NA_real_
+  for(i in 1:length(conc)) conc[[i]][!is.finite(conc[[i]])] <- NA_real_
   names(conc) <- names(J)
 
   conc
