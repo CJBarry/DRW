@@ -685,7 +685,7 @@ DRW <- function(rootname, description, mfdir = ".",
       #
       # register mass lost to sinks
       fluxout[[drts]] <- mt$traces[ml != 0,
-                                   list(ts = drts, C = C, R = R, L = L,
+                                   list(ts = drts,
                                         J_out = sum(ml)/dift),
                                    by = c("C", "R", "L")]
       #
@@ -799,6 +799,7 @@ DRW <- function(rootname, description, mfdir = ".",
                           L = integer(0L), J_out = numeric(0L))
   }
   setkey(fluxout, ts)
+  setcolorder(fluxout, fcolorder)
   #
   # - clean up (leave MODPATH summary file)
   if(!keepMPfiles){
