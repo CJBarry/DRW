@@ -271,7 +271,8 @@ DRW <- function(rootname, description, mfdir = ".",
   if(`&&`(!is.na(time.mismatch.tol),
           !isTRUE(all.equal(sapply(mftstl[-ndset], last),
                             sapply(mftstl[-1L], `[`, 1L),
-                            tolerance = time.mismatch.tol)))) stop({
+                            tolerance = time.mismatch.tol,
+                            scale = 1)))) stop({
                               "DRW: end times of MODFLOW models do not match the start times of successive models"
                             })
   #
@@ -403,24 +404,8 @@ DRW <- function(rootname, description, mfdir = ".",
   #     time of the last MODFLOW model, to avoid time step confusion
   # --------------------------------------------------------------------- #
   #
-  if(start.t > end.t) stop("DRW: start time after end time")
-  if(dt <= 0) stop("DRW: dt <= 0")
-  tvals <- sort(unique(c(Map(seq, dsett[-(ndset + 1L)], dsett[-1L], dt),
-                         start.t, dsett, end.t,
-                         recursive = TRUE)))
-  tvals <- tvals[tvals >= max(start.t, dsett[1L]) &
-                   tvals <= min(end.t, last(dsett))]
-  if(isTRUE(all.equal(last(tvals), last(dsett),
-                      tolerance = time.mismatch.tol))){
-    tvals[length(tvals)] <- tvals[length(tvals)] - time.mismatch.tol
-  }
+  tvals <- DRW_timesteps(start.t, end.t, dt, dsett, time.mismatch.tol)
   ndrts <- length(tvals)
-  if(tvals[1L] > start.t) warning({
-    "DRW: simulation is starting after start.t because the MODFLOW models do not go far enough back"
-  })
-  if(last(tvals) < end.t - time.mismatch.tol*2) warning({
-    "DRW: simulation is stopping before end.t because the MODFLOW models do not go far enough forward"
-  })
 
 
   # load initial state from another model, if requested ----
