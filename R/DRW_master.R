@@ -810,7 +810,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - get z
   if(nrow(mob)){
-    mob[, z := {
+    mob[ts != 1L, z := {
       top.imtx <- cbind(C, R, L, mfts)
       bot.imtx <- cbind(C, R, L + 1L)
 
@@ -827,7 +827,7 @@ DRW <- function(rootname, description, mfdir = ".",
     }, by = mfds]
   }else mob[, z := numeric(0L)]
   if(nrow(immob)){
-    immob[, z := {
+    immob[ts != 1L, z := {
       top.imtx <- cbind(C, R, L, mfts)
       bot.imtx <- cbind(C, R, L + 1L)
 
