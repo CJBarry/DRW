@@ -53,9 +53,13 @@ wellJ <- function(dr, welref){
 
   J <- rep(list(double(length(dr@time))), nrow(welref))
   names(J) <- welref[, paste0("C", C, "R", R, "L", L)]
-  dr@fluxout[welref, {
+
+  # join data.tables
+  fluxes <- dr@fluxout[welref, on = c("C", "R", "L")]
+
+  fluxes[!is.na(ts), {
     J[[paste0("C", C, "R", R, "L", L)]][ts] <<- sum(J_out)
-  }, by = c("ts", "C", "R", "L"), on = c("C", "R", "L")]
+  }, by = c("ts", "C", "R", "L")]
 
   # J should always be in the same order as welref
   J

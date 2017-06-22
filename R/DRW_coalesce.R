@@ -71,7 +71,7 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
 
   # find layer thicknesses
   # - unique cell references
-  crls <- unique(pdt[, .(C, R, L)])
+  crls <- unique(pdt[, list(C, R, L)])
   #
   # - thickness for each cell reference
   crls[!(is.na(C) | is.na(R) | is.na(L)), thk := if(!.N) numeric(0L) else{
@@ -91,7 +91,7 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
   #  data table
   loss <- sum(pdt[is.na(thk), m])
   pdt <- pdt[!is.na(thk)]
-  if(!nrow(pdt)) return(list(state = pdt[, .(ts, x, y, L, zo, m)],
+  if(!nrow(pdt)) return(list(state = pdt[, list(ts, x, y, L, zo, m)],
                              loss = loss))
 
   # coalesce layer by layer
@@ -104,7 +104,8 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
     cdzo <- cd[2L]/wat
 
     # perform coalesce
-    tmp <- coalesce(.SD[, .(x, y, zo, m)], cd[1L], cdzo, mm, maxnp = maxnp,
+    tmp <- coalesce(.SD[, list(x, y, zo, m)],
+                    cd[1L], cdzo, mm, maxnp = maxnp,
                     subregions = TRUE, nppsr = 256L, TwoD = FALSE)
     tmp[, ts := ts[1L]]
     tmp

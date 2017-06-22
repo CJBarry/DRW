@@ -727,20 +727,20 @@ DRW <- function(rootname, description, mfdir = ".",
         statem <- com$state
         rm(com)
       }else{
-        statem <- statem[, .(ts, x, y, L, zo, m)]
+        statem <- statem[, list(ts, x, y, L, zo, m)]
       }
     }
     #
     # - immobile
     if(!is.null(statei)){
       if(nrow(statei) > minnp){
-      coi <- coalesceDRW(statei, cd, mm, maxnp,
-                         mfdatal[[mfds]], wtopl[[mfds]], mfts)
-      lost[drts, "inactive"] <- lost[drts, "inactive"] + coi$loss
-      statei <- coi$state
-      rm(coi)
+        coi <- coalesceDRW(statei, cd, mm, maxnp,
+                           mfdatal[[mfds]], wtopl[[mfds]], mfts)
+        lost[drts, "inactive"] <- lost[drts, "inactive"] + coi$loss
+        statei <- coi$state
+        rm(coi)
       }else{
-        statei <- statei[, .(ts, x, y, L, zo, m)]
+        statei <- statei[, list(ts, x, y, L, zo, m)]
       }
     }
 
