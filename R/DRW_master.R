@@ -606,7 +606,9 @@ DRW <- function(rootname, description, mfdir = ".",
     # - remove unneeded columns for immobile phase
     #  -- very important the coalesce function needs to know to recalculate
     #      columns and rows after the sorbed material is added
-    suppressWarnings(statei[, c("z", "C", "R", "mfds", "mfts") := NULL])
+    if(is.data.table(statei)){
+      suppressWarnings(statei[, c("z", "C", "R", "mfds", "mfts") := NULL])
+    }
 
     # 3. sorb and desorb
     if(Rf != 1){
