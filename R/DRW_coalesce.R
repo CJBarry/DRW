@@ -97,7 +97,7 @@ coalesceDRW <- function(pdt, cd, mm, maxnp, mfdata, wtop, mfts){
   # coalesce layer by layer
   copdt <- pdt[, {
     # weighted average thickness
-    wat <- weighted.mean(thk, m)
+    wat <- weighted.mean(thk, m, na.rm = TRUE)
 
     # determine appropriate z-offset-based vertical search radius based on
     #  cd[2L] and wat

@@ -189,11 +189,11 @@ extract.welref <- function(welref, dr, callingfun){
 #' @param ...
 #' \code{DRWbalance}: additional parameters to pass to
 #'  \code{plot.DRWbalance};
-#' \code{plot.DRWbalance}: axis label and title parameters (although there
-#'  are internal defaults if these aren't given)
+#' \code{plot.DRWbalance}: axis range and label and title parameters
+#'  (although there are internal defaults if these aren't given)
 #'
 #' @return
-#' list with class "DRWbalance", with elements:\cr
+#' \code{DRWbalance} returns a list of class "DRWbalance", with elements:\cr
 #' \code{$in_} numeric [nts - 1, 1]: input mass or flux from sources by
 #'  time step\cr
 #' \code{$out} numeric [nts - 1, 8]: output mass or flux to sinks,
@@ -213,6 +213,10 @@ extract.welref <- function(welref, dr, callingfun){
 #'  \code{in_}, \code{out} and \code{Dactive} matrices have one less row
 #'  than the number of time steps.
 #'
+#' The result is returned invisibly if \code{plot == TRUE}.
+#'
+#' \code{plot.DRWbalance} returns \code{NULL}.
+#'
 NULL
 
 #' @rdname DRWbalance
@@ -220,7 +224,8 @@ NULL
 #' @importFrom methods is
 #' @export
 #'
-DRWbalance <- function(dr, type = c("mass", "flux")[1L], plot = FALSE, ...){
+DRWbalance <- function(dr, type = c("mass", "flux")[1L], plot = FALSE,
+                       t = dr, ...){
   if(!(isS4(dr) && is(dr, "DRWmodel")))
     stop("DRW::DRWbalance: dr must be a DRWmodel S4 class, the result of DRW")
 
@@ -293,9 +298,9 @@ DRWbalance <- function(dr, type = c("mass", "flux")[1L], plot = FALSE, ...){
 
   class(bal) <- c(type, "DRWbalance")
 
-  if(plot) plot.DRWbalance(bal, dr, ...)
+  if(plot) plot.DRWbalance(bal, t, ...)
 
-  bal
+  if(plot) invisible(bal) else bal
 }
 
 #' @rdname DRWbalance
@@ -343,6 +348,9 @@ plot.DRWbalance <- function(balance, t = NULL, detail = TRUE,
   maxval <- with(balance, max(max(in_), max(Dactive), max(imbalance)))
   minval <- with(balance, min(min(out), min(Dactive), min(imbalance)))
 
+  xlim <- if(!"xlim" %in% names(dots)) range(t) else dots$xlim
+  ylim <- if(!"ylim" %in% names(dots)) c(minval, maxval) else dots$ylim
+
   # plot and legend layout
   layout(matrix(2:1, 2L, 1L), heights = c(3, 1))
   on.exit(layout(t(1L)))
@@ -375,7 +383,7 @@ plot.DRWbalance <- function(balance, t = NULL, detail = TRUE,
   # plot
   par(mar = opar)
   plot.new()
-  plot.window(range(t), c(minval, maxval))
+  plot.window(xlim, ylim)
   box(); axis(1L); axis(2L)
   title(xlab = xlab, ylab = ylab, main = main, sub = sub)
   abline(h = 0, col = "grey")

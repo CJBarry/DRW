@@ -5,7 +5,7 @@
 \alias{plot.DRWbalance}
 \title{Mass or Flux balance for a DRW model result}
 \usage{
-DRWbalance(dr, type = c("mass", "flux")[1L], plot = FALSE, ...)
+DRWbalance(dr, type = c("mass", "flux")[1L], plot = FALSE, t = dr, ...)
 
 \method{plot}{DRWbalance}(balance, t = NULL, detail = TRUE, col = c(in_ =
   "red", out = "blue", Dactive = "darkgreen", imbalance = "black"), ...)
@@ -19,14 +19,14 @@ results from \code{\link{DRW}}}
 \item{plot}{logical [1];
 whether to plot the results using plot.DRWbalance before returning}
 
-\item{...}{\code{DRWbalance}: additional parameters to pass to
- \code{plot.DRWbalance};
-\code{plot.DRWbalance}: axis label and title parameters (although there
- are internal defaults if these aren't given)}
-
 \item{t}{\code{NULL}, numeric [nts - 1] or a \code{\link{DRWmodel}};
 time values to use for x axis; if \code{NULL} is given, then time step
  numbers are plotted}
+
+\item{...}{\code{DRWbalance}: additional parameters to pass to
+ \code{plot.DRWbalance};
+\code{plot.DRWbalance}: axis range and label and title parameters
+ (although there are internal defaults if these aren't given)}
 
 \item{detail}{logical [1];
 whether to subdivide inputs, outputs and active mass}

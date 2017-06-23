@@ -557,9 +557,20 @@ DRW <- function(rootname, description, mfdir = ".",
 
     # establish MODFLOW model no., stress period and time step
     o.mfds <- mfds
+    #
+    # - start of time step
     mfds <- cellref.loc(t1, dsett)
-    mfsp <- cellref.loc(t1, mfsptl[[mfds]])
-    mfts <- cellref.loc(t1, mftstl[[mfds]])
+    mfsp1 <- cellref.loc(t1, mfsptl[[mfds]])
+    mfts1 <- cellref.loc(t1, mftstl[[mfds]])
+    #
+    # - end of time step
+    #  -- NAs may be returned for values right at the end of a time
+    #      division and these are corrected for
+    mfsp2 <- cellref.loc(t2, mfsptl[[mfds]])
+    if(is.na(mfsp2)) mfsp2 <- length(mfsptl[[mfds]]) - 1L
+    #
+    mfts2 <- cellref.loc(t2, mftstl[[mfds]])
+    if(is.na(mfts2)) mfts2 <- length(mftstl[[mfds]]) - 1L
 
     # 1. bring state forward
     # - mobile
@@ -591,6 +602,11 @@ DRW <- function(rootname, description, mfdir = ".",
                         m = mtmp)])
     #
     # - later development could allow release to the sorbed phase
+    #
+    # - remove unneeded columns for immobile phase
+    #  -- very important the coalesce function needs to know to recalculate
+    #      columns and rows after the sorbed material is added
+    suppressWarnings(statei[, c("z", "C", "R", "mfds", "mfts") := NULL])
 
     # 3. sorb and desorb
     if(Rf != 1){
@@ -722,7 +738,7 @@ DRW <- function(rootname, description, mfdir = ".",
     if(!is.null(statem)){
       if(nrow(statem) > minnp){
         com <- coalesceDRW(statem, cd, mm, maxnp,
-                           mfdatal[[mfds]], wtopl[[mfds]], mfts)
+                           mfdatal[[mfds]], wtopl[[mfds]], mfts2)
         lost[drts, "inactive"] <- lost[drts, "inactive"] + com$loss
         statem <- com$state
         rm(com)
@@ -735,7 +751,7 @@ DRW <- function(rootname, description, mfdir = ".",
     if(!is.null(statei)){
       if(nrow(statei) > minnp){
         coi <- coalesceDRW(statei, cd, mm, maxnp,
-                           mfdatal[[mfds]], wtopl[[mfds]], mfts)
+                           mfdatal[[mfds]], wtopl[[mfds]], mfts2)
         lost[drts, "inactive"] <- lost[drts, "inactive"] + coi$loss
         statei <- coi$state
         rm(coi)
@@ -747,14 +763,14 @@ DRW <- function(rootname, description, mfdir = ".",
     # 9. plot if requested
     if(plot.state){
       # never stop running because this fails
-      try(plotDRWstate(statem, rel, drts, mfsp,
+      try(plotDRWstate(statem, rel, drts, mfsp2,
                        basl[[nc.to.mf[mfds]]], well[[nc.to.mf[mfds]]],
                        gccs, grcs, ...))
     }
 
     # 10. save
-    if(!is.null(statem)) statem[, c("mfds", "mfts") := list(mfds, mfts)]
-    if(!is.null(statei)) statei[, c("mfds", "mfts") := list(mfds, mfts)]
+    if(!is.null(statem)) statem[, c("mfds", "mfts") := list(mfds, mfts2)]
+    if(!is.null(statei)) statei[, c("mfds", "mfts") := list(mfds, mfts2)]
     #
     # - notation here avoids deleting elements if the mob or immob results
     #    are NULL
