@@ -261,7 +261,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #    model number)
   if(!identical(length(nc.to.mf), ndset))
     stop("DRW: nc.to.mf is length ", length(nc.to.mf),
-         " but mfdata is length ", length(ndset),
+         " but mfdata is length ", ndset,
          "; in most cases nc.to.mf should be 1:length(mfdata)")
   #
   # - gather time steps for each MODFLOW NetCDF and check that the end of
@@ -535,15 +535,16 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # --------------------------------------------------------------------- #
   # for each time step:
-  # 1. bring forward state at end of last time step
-  # 2. add source releases
-  # 3. sorb and desorb
-  # 4. advect (MODPATH)
-  # 5. calculate sink and reaction fluxes (MassTrack)
-  # 6. disperse
-  # 7. register lost mass
-  # 8. coalesce
-  # 9. plot
+  #  1. bring forward state at end of last time step
+  #  2. add source releases
+  #  3. sorb and desorb
+  #  4. advect (MODPATH)
+  #  5. calculate sink and reaction fluxes (MassTrack)
+  #  6. disperse
+  #  7. register lost mass
+  #  8. coalesce
+  #  9. plot
+  # 10. save
   # --------------------------------------------------------------------- #
   #
   tsattempt <- NULL
