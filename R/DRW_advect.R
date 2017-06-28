@@ -16,6 +16,7 @@
 #' @param newcbf ask MODPATH to write fresh CBF?
 #' @param transient does the MODFLOW model contain more than one time step?
 #' @param maxnp number of particles MODPATH should allocate memory for
+#' @param mpdir MODPATH file directory
 #'
 #' @return
 #' data.table with pathline results
@@ -24,7 +25,11 @@
 #'
 advectMODPATH <- function(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e,
                           disnm, dis, bas, hds, cbb, cbf,
-                          newds, newcbf, transient, maxnp){
+                          newds, newcbf, transient, maxnp, mpdir){
+  od <- getwd()
+  setwd(mpdir)
+  on.exit(setwd(od), add = TRUE)
+
   # write the DAT file if necessary
   # - if the model has reached a new MODFLOW dataset
   # - if the current DAT file doesn't allow for enough particles
@@ -91,7 +96,7 @@ rsptxt <- function(tlim, newcbf, cbf, transient){
                 "Y",
                 paste(tlim, "1"), # terminate simulation at this time
                 if(transient) ifelse(newcbf, "1", "2"), # new cbf?
-                if(transient) cbf, # name of cbf to be written or read
+                if(transient) paste0("../", cbf), # name of cbf to be written or read
                 "2", # pathline output
                 "N", # don't calculate location at specific time points
                 "1",
@@ -201,8 +206,8 @@ ptrtxt <- function(ptr.dat, rt){
 #' character string
 #'
 namtxt <- function(dis, hds, cbb, dat){
-  paste(paste0("DIS    29    \'", dis, "\'"),
+  paste(paste0("DIS    29    \'../", dis, "\'"),
         paste0("main      10      \'", dat, "\'"),
-        paste0("budget    17      \'", cbb, "\'"),
-        paste0("head(binary)  18      \'", hds, "\'"), sep = "\n")
+        paste0("budget    17      \'../", cbb, "\'"),
+        paste0("head(binary)  18      \'../", hds, "\'"), sep = "\n")
 }

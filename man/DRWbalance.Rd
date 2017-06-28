@@ -38,7 +38,7 @@ colours to use for inputs, outputs, active mass and imbalance
 \item{balance;}{a DRWbalance object, the result of \code{DRWbalance}}
 }
 \value{
-list with class "DRWbalance", with elements:\cr
+\code{DRWbalance} returns a list of class "DRWbalance", with elements:\cr
 \code{$in_} numeric [nts - 1, 1]: input mass or flux from sources by
  time step\cr
 \code{$out} numeric [nts - 1, 8]: output mass or flux to sinks,
@@ -57,5 +57,9 @@ Each element has informative column names (try \code{colnames(bal$out)}
  fluxes and changes of mass are between the time steps, which is why the
  \code{in_}, \code{out} and \code{Dactive} matrices have one less row
  than the number of time steps.
+
+The result is returned invisibly if \code{plot == TRUE}.
+
+\code{plot.DRWbalance} returns \code{NULL}.
 }
 

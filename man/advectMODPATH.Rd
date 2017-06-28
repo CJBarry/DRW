@@ -5,7 +5,7 @@
 \title{Particle Tracking Advection with MODPATH 5}
 \usage{
 advectMODPATH(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e, disnm, dis, bas, hds, cbb,
-  cbf, newds, newcbf, transient, maxnp)
+  cbf, newds, newcbf, transient, maxnp, mpdir)
 }
 \arguments{
 \item{mpdt}{data.table; mobile particles}
@@ -33,6 +33,8 @@ advectMODPATH(mpdt, t1, t2, MFx0, MFy0, MFt0, phi_e, disnm, dis, bas, hds, cbb,
 \item{transient}{does the MODFLOW model contain more than one time step?}
 
 \item{maxnp}{number of particles MODPATH should allocate memory for}
+
+\item{mpdir}{MODPATH file directory}
 
 \item{newdat}{write fresh DAT?}
 }

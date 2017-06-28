@@ -214,6 +214,17 @@ DRW <- function(rootname, description, mfdir = ".",
   setwd(mfdir)
   on.exit(setwd(od), add = TRUE)
 
+  # set up an independent directory for MODPATH files
+  # - this avoids confusion when multiple DRW models are running
+  #    simultaneously
+  # - the directory is based on rootname and is relative to mfdir, which
+  #    has already been navigated to by this stage
+  if(length(rootname) != 1L) stop({
+    "DRW: `rootname` should be a length-1 character string (that is, one element, not one character)"
+  })
+  mpdir <- paste0(last(strsplit(rootname, "[\\/]")[[1L]]), "_DRW")
+  if(!dir.exists(mpdir)) dir.create(paste0(mpdir))
+
   # don't allow a 0 or negative time.mismatch.tol
   time.mismatch.tol <- abs({
     if(abs(time.mismatch.tol) == 0) 1e-10 else time.mismatch.tol
@@ -654,7 +665,7 @@ DRW <- function(rootname, description, mfdir = ".",
                          cbf[nc.to.mf[mfds]],
                          newds, newcbf,
                          transientl[[nc.to.mf[mfds]]],
-                         MPmaxnp)
+                         MPmaxnp, mpdir)
     #
     # - correct time step number in case of split MODFLOW data set
     if(mfdata.split[mfds]){
@@ -807,8 +818,8 @@ DRW <- function(rootname, description, mfdir = ".",
   #
   # - clean up (leave MODPATH summary file)
   if(!keepMPfiles){
-    MPfiles <- c(paste0("DRW", c(".ptr", ".rsp", ".dat", ".nam")),
-                 "pathline", "endpoint")
+    MPfiles <- paste0(mpdir, "/", c(paste0("DRW", c(".ptr", ".rsp", ".dat", ".nam")),
+                                    "pathline", "endpoint"))
     file.remove(MPfiles[file.exists(MPfiles)])
   }
 

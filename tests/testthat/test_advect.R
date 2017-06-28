@@ -11,6 +11,9 @@ test_that("MODPATH working", {
   setwd(wd <- system.file(package = "DRW"))
   cat(wd, "\n")
 
+  mpdir <- "tmp"
+  if(!dir.exists(mpdir)) dir.create(mpdir)
+
   # the example MODFLOW model is part of the Rflow package
   hdsnm <- "drw_mf_demo.hds"
   cbbnm <- "drw_mf_demo.cbb"
@@ -32,7 +35,7 @@ test_that("MODPATH working", {
   expect_silent({
     ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
-                               TRUE, TRUE, TRUE, 100L)
+                               TRUE, TRUE, TRUE, 100L, mpdir)
   })
   expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
@@ -40,7 +43,7 @@ test_that("MODPATH working", {
   expect_silent({
     ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
-                               FALSE, FALSE, TRUE, 100L)
+                               FALSE, FALSE, TRUE, 100L, mpdir)
   })
   expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
@@ -48,7 +51,7 @@ test_that("MODPATH working", {
   expect_silent({
     ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 1000, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
-                               FALSE, FALSE, TRUE, 100L)
+                               FALSE, FALSE, TRUE, 100L, mpdir)
   })
   expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
   #
@@ -59,7 +62,7 @@ test_that("MODPATH working", {
   expect_silent({
     ptl <- DRW:::advectMODPATH(state, 1000, 2000, 10, 10, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
-                               FALSE, FALSE, TRUE, 100L)
+                               FALSE, FALSE, TRUE, 100L, mpdir)
   })
   expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
 
@@ -69,6 +72,9 @@ test_that("MODPATH working", {
 test_that("release into inactive cell", {
   od <- getwd()
   setwd(wd <- system.file(package = "DRW"))
+
+  mpdir <- "tmp"
+  if(!dir.exists(mpdir)) dir.create(mpdir)
 
   # the example MODFLOW model is part of the Rflow package
   hdsnm <- "drw_mf_demo.hds"
@@ -86,7 +92,7 @@ test_that("release into inactive cell", {
   expect_silent({
     ptl <- DRW:::advectMODPATH(state, 1000, 2000, 0, 0, 0, .2, disnm,
                                dis, bas, hdsnm, cbbnm, "DRWtest.cbf",
-                               FALSE, FALSE, TRUE, 100L)
+                               FALSE, FALSE, TRUE, 100L, mpdir)
   })
   expect_equal(names(ptl), MassTrack:::PTL.headers[1:10])
   expect_equal(data.table::uniqueN(ptl$ptlno), 1L)
