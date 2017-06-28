@@ -359,6 +359,7 @@ DRW <- function(rootname, description, mfdir = ".",
   #  not given, this code automatically assembles the correct wtop NetCDF
   # --------------------------------------------------------------------- #
   #
+  if(is(wtop, "NetCDF")) wtop <- list(wtop)
   # - determine if each MODFLOW NetCDF dataset is a subset and whether it
   #    is the first subset in a set
   mfdata.split <- vapply(mfdatal, function(nc){
